@@ -1,4 +1,4 @@
-# Pulse — Forward-Deployed Engineering Journey
+# Pulse - Forward-Deployed Engineering Journey
 
 How Pulse deploys into a team's live environment: integration points, security, rollout, observability, and how each risk is de-risked. Written from the FDE lens: dropping an auto-writing agent into a place where it can embarrass people if it misbehaves.
 
@@ -15,7 +15,7 @@ Pulse is a Next.js app on Vercel reading a team's GitHub activity and writing to
 
 ## 2. Security & secrets
 
-- **Secrets via environment only.** `ANTHROPIC_MODEL` + API key, Firebase Admin credentials, GitHub scope — all env vars, none in the client bundle. The AI SDK is imported only in server routes.
+- **Secrets via environment only.** `ANTHROPIC_MODEL` + API key, Firebase Admin credentials, GitHub scope - all env vars, none in the client bundle. The AI SDK is imported only in server routes.
 - **Server-only writes.** Narratives, agent tasks, and shared-memory notes are written with the Admin SDK. The client cannot forge them; `firestore.rules` is the enforced authorization boundary and is tested by an allow/deny matrix plus a generated attack set (`tests/rules/firestore.test.ts`, `tests/rules/gen-attacks.test.ts`).
 - **Prompt-injection containment.** Because Pulse reads attacker-controllable text and auto-publishes, the `checkNarrative` guard (`lib/sense.ts`) is a security control, not a nicety: an actor's commits can only ever produce a sentence about that actor. See TECHNICAL_NOTES §Guardrails.
 - **Right to be forgotten.** `forgetShared` (`lib/shared-context.ts`) erases a person's memory notes, activity, and agent tasks in both directions, so erasure is complete, not partial. This matters for any enterprise data-handling review.
@@ -34,7 +34,7 @@ The rollout pattern mirrors how you would safely introduce any auto-writer into 
 - **Structured degradation reasons.** `narrate()` returns a discriminated union (`skipped_cached`, `facts_only` with a reason, `narrated`), so every non-happy path is a named, countable outcome rather than a swallowed error.
 - **Cost visibility.** The cache design is documented with a concrete call/cost model (`TESTING.md`); a live spend counter is roadmap. Blaze budget alerts are recommended in `TESTING.md` (notify, not cap).
 - **Test gate.** `npm run gate` (typecheck + lint + unit + rules + integration + e2e smoke) is the pre-deploy signal. The cross-app drift check is a separate, explicit gate.
-- **Documented operational war stories.** `TESTING.md` records real incidents (e.g. the Firestore-SDK-dead-but-REST-alive sign-up hang) and how they were caught — the kind of institutional knowledge an FDE hands to the customer's on-call.
+- **Documented operational war stories.** `TESTING.md` records real incidents (e.g. the Firestore-SDK-dead-but-REST-alive sign-up hang) and how they were caught - the kind of institutional knowledge an FDE hands to the customer's on-call.
 
 ## 5. De-risking summary
 
