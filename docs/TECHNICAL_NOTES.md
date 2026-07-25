@@ -1,4 +1,4 @@
-# Pulse — Technical Notes & Rubric Scorecard
+# Pulse - Technical Notes & Rubric Scorecard
 
 Every claim below is tied to a file in this repo. Where a capability is not present, it is marked as a gap rather than dressed up.
 
@@ -10,10 +10,10 @@ Every claim below is tied to a file in this repo. Where a capability is not pres
 | 2 | How the AI works | 4 / 5 | Grounded in real evidence (`formatEvidence`, `lib/sense.ts`); attacker text wrapped in an explicit delimiter (`buildPrompt`); `stop_reason === 'refusal'` handled as a content outcome; low effort, no thinking. | Temperature not set explicitly (SDK default); groundedness only spot-checked, not judged. |
 | 3 | Tools / MCP | 4 / 5 | Real tool-use agent with JSON `input_schema` per tool (`lib/agent.ts`: `create_task`, `set_task_status`, `mark_stuck`, `propose_dispatch`, `remember`, `draft_recipe`); `validatePlan` validates and drops disallowed calls; publish tool gated behind `canPublish`. | Not exposed as an MCP server; tool errors degrade coarsely. |
 | 4 | Agents & skills | 4 / 5 | Ask-Pulse agent runs a tool loop (`lib/agent-plan.ts`); capability-gated publishing; cross-app agent-to-agent dispatch (`lib/shared-context.ts`). | Single-turn planning; no long-horizon autonomy. |
-| 5 | Orchestration & routing | 3 / 5 | Cost-first orchestration: cache guard (`shouldNarrate`) runs before any model call; per-call effort tuned; rate limiting (`lib/rate-limit.ts`). | No multi-model routing — one model for all tasks. Honest: this is caching, not routing. |
+| 5 | Orchestration & routing | 3 / 5 | Cost-first orchestration: cache guard (`shouldNarrate`) runs before any model call; per-call effort tuned; rate limiting (`lib/rate-limit.ts`). | No multi-model routing - one model for all tasks. Honest: this is caching, not routing. |
 | 6 | RAG & context | 3 / 5 | Retrieval-then-generate over commit/PR evidence; cross-app shared memory bus keyed by identity (`lib/shared-context.ts`, `rememberShared`/`readSharedMemory`). Failure modes handled (facts-only). | No vector search / embeddings; retrieval is direct, not semantic. |
 | 7 | Evals & grounding | 4 / 5 | Deterministic guard tests, generated adversarial matrices (`tests/unit/gen-*.ts`), rules evals (`tests/rules/*`), emulator integration tests, Playwright e2e including `degraded.spec.ts`. ~865 test cases defined. | No LLM-judge, no A/B, no model-eval golden set yet (see EVALS roadmap). |
-| 8 | Code quality | 5 / 5 | Strongly typed; discriminated-union results (`NarrativeCheck`, `NarrationResult`); dense rationale comments explaining *why*; clear module boundaries; `typecheck`+`lint`+tests wired into a `gate` script. | — |
+| 8 | Code quality | 5 / 5 | Strongly typed; discriminated-union results (`NarrativeCheck`, `NarrationResult`); dense rationale comments explaining *why*; clear module boundaries; `typecheck`+`lint`+tests wired into a `gate` script. | - |
 | 9 | Scalability & cost | 4 / 5 | Explicit, code-level cost model (`lib/sense.ts`, `lib/types.ts`, `TESTING.md`): ~\$524 uncached vs ~\$27 cached over the pilot against ~\$11 credit; identity/SHA-range cache; single-slot→set cache fix to stop re-billing. | Poll, not webhook; cost model is a projection, live spend counter is roadmap. |
 | 10 | Guardrails & safety | 5 / 5 | `checkNarrative` (auto-publish backstop, `names_another_member`), `checkRecipeBody`, Unicode folding, markup rejection, refusal handling, facts-only degradation, server-only writes, tested `firestore.rules`, capability-gated tools. | Cross-script homoglyph fold is a documented residual. |
 | 11 | Product layer | 4 / 5 | See `docs/PRD.md`: personas, JTBD, metrics, explicit tradeoffs, Now/Next/Later. Three-layer ladder matches code maturity honestly. | Bank/Broker layers still roadmap; adoption metrics from the pilot not instrumented in-repo. |
@@ -24,7 +24,7 @@ Every claim below is tied to a file in this repo. Where a capability is not pres
 ## Model & orchestration detail
 
 - **Model:** `claude-opus-4-8` for all four AI surfaces (narration, extraction, home brief, ask-agent). Overridable via `ANTHROPIC_MODEL`. Called only from server routes; the key never reaches the browser.
-- **Effort:** narration uses `output_config: { effort: 'low' }` with no thinking — a deliberate match to a one-sentence task, and part of the cost story.
+- **Effort:** narration uses `output_config: { effort: 'low' }` with no thinking - a deliberate match to a one-sentence task, and part of the cost story.
 - **The cache is the orchestrator.** `shouldNarrate(narratedKeys, handle, commitShas)` short-circuits before the model is invoked. The narrated set is keyed by `handle : sorted(SHAs)`, so identical work is never re-billed. Comment in code: "A cache miss on an unchanged range is a bug, not an inefficiency."
 - **Rate limiting:** `lib/rate-limit.ts` (`hitRateLimit`, `evictExpired`) bounds per-window calls.
 
@@ -32,13 +32,13 @@ Every claim below is tied to a file in this repo. Where a capability is not pres
 
 The product bet is auto-publish with no human in the loop, so the guard *is* the safety story:
 
-1. **`checkNarrative`** (`lib/sense.ts`) — runs on every model narrative before publish. Rejects empty, over-length, markup/HTML, and any sentence naming another cohort member. Rejection → publish facts only, silently.
-2. **Unicode folding** (`foldForMention`) — NFKD, strip combining marks + zero-width/bidi controls, lowercase, then whole-word mention scan. Closes the cheap typographic evasions (`Már cus`, `Mar<ZWSP>cus`). Residual: cross-script homoglyphs (documented).
-3. **`checkRecipeBody`** — the same peer-name gate on agent-drafted recipes, but *blocked* (handed back to edit) rather than silently redacted, because a recipe posts as the author's own words.
-4. **Capability-gated tools** — `validatePlan` drops the publish tool unless the user opted in (`canPublish`); the model is never even offered a tool it should not have.
-5. **Server-only writes + tested rules** — the client cannot forge a narrative, task, or shared-memory note; `firestore.rules` is the enforced boundary and is tested (`tests/rules/*`).
+1. **`checkNarrative`** (`lib/sense.ts`) - runs on every model narrative before publish. Rejects empty, over-length, markup/HTML, and any sentence naming another cohort member. Rejection → publish facts only, silently.
+2. **Unicode folding** (`foldForMention`) - NFKD, strip combining marks + zero-width/bidi controls, lowercase, then whole-word mention scan. Closes the cheap typographic evasions (`Már cus`, `Mar<ZWSP>cus`). Residual: cross-script homoglyphs (documented).
+3. **`checkRecipeBody`** - the same peer-name gate on agent-drafted recipes, but *blocked* (handed back to edit) rather than silently redacted, because a recipe posts as the author's own words.
+4. **Capability-gated tools** - `validatePlan` drops the publish tool unless the user opted in (`canPublish`); the model is never even offered a tool it should not have.
+5. **Server-only writes + tested rules** - the client cannot forge a narrative, task, or shared-memory note; `firestore.rules` is the enforced boundary and is tested (`tests/rules/*`).
 
-## Cost engineering — the honest version
+## Cost engineering - the honest version
 
 The pilot ran on a fixed ~\$11 credit budget. The code models the tradeoff directly:
 
