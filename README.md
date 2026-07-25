@@ -23,6 +23,20 @@ corner was rejected.
 
 ---
 
+## Docs
+
+Deeper product and engineering write-ups live in [`docs/`](docs/):
+
+- [PRD.md](docs/PRD.md) — personas, jobs-to-be-done, success metrics, tradeoffs, and the Now/Next/Later roadmap.
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — system overview with component and sequence diagrams, grounded in the real code paths; includes the Pulse↔Rally cross-app dispatch design.
+- [EVALS.md](docs/EVALS.md) — the eval ladder (deterministic → rules → integration → e2e; LLM-judge and A/B as roadmap) with named metrics.
+- [TECHNICAL_NOTES.md](docs/TECHNICAL_NOTES.md) — the 12-point AI-engineering scorecard, model/orchestration detail, guardrails, and the honest cost breakdown.
+- [FDE_JOURNEY.md](docs/FDE_JOURNEY.md) — how Pulse deploys into a live team: integration, secrets, rollout/cutover, observability, de-risking.
+
+A runnable, production-safe eval for the prompt-injection guard lives in [`evals/`](evals/) — see its [README](evals/README.md).
+
+---
+
 ## Setup
 
 Requires **Node 20.9+** (Next 16's floor). Java 11+ is only needed for the emulator, not the app.
