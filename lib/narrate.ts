@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { checkNarrative, formatEvidence, narrationCacheKey, shouldNarrate } from './sense';
+import { usageFromResponse, type CallUsage } from './usage';
 import type { Evidence } from './types';
 
 /**
@@ -60,10 +61,11 @@ export type NarrationInput = {
 };
 
 export type NarrationResult =
-  /** Publish this sentence, with its evidence. */
-  | { kind: 'narrated'; narrative: string; cacheKey: string }
-  /** Publish facts only. Never an error, never a suspect sentence. */
-  | { kind: 'facts_only'; reason: string }
+  /** Publish this sentence, with its evidence. `usage` records what the call spent. */
+  | { kind: 'narrated'; narrative: string; cacheKey: string; usage?: CallUsage }
+  /** Publish facts only. Never an error, never a suspect sentence. When a model call was
+   *  actually made (a refusal, a rejected sentence), `usage` records what it still cost. */
+  | { kind: 'facts_only'; reason: string; usage?: CallUsage }
   /** No new commits — no model call was made. This is the path that pays for the pilot. */
   | { kind: 'skipped_cached' };
 
@@ -95,6 +97,9 @@ export async function narrate(input: NarrationInput): Promise<NarrationResult> {
   const cacheKey = narrationCacheKey(input.handle, input.commitShas);
 
   let text: string;
+  // What the call spent, for the live cost counter. Populated once the call returns; the
+  // no-response failure (rate limit, network) below never reaches here, so it carries none.
+  let usage: CallUsage | undefined;
   try {
     const response = await anthropic.messages.create({
       model: MODEL,
@@ -111,10 +116,13 @@ export async function narrate(input: NarrationInput): Promise<NarrationResult> {
       ],
     });
 
+    // Even a refusal or a rejected sentence billed input/output tokens — record them.
+    usage = usageFromResponse(response.usage);
+
     // Safety classifiers can decline. That's a content outcome, not an exception —
     // check before reading content, which may be empty.
     if (response.stop_reason === 'refusal') {
-      return { kind: 'facts_only', reason: 'refused' };
+      return { kind: 'facts_only', reason: 'refused', usage };
     }
 
     text = response.content
@@ -127,7 +135,7 @@ export async function narrate(input: NarrationInput): Promise<NarrationResult> {
     return { kind: 'facts_only', reason: 'model_unavailable' };
   }
 
-  if (!text || text === 'SKIP') return { kind: 'facts_only', reason: 'nothing_to_say' };
+  if (!text || text === 'SKIP') return { kind: 'facts_only', reason: 'nothing_to_say', usage };
 
   // The backstop. Rejects markup, over-length output, and — the one that matters — any
   // sentence naming another cohort member.
@@ -140,10 +148,10 @@ export async function narrate(input: NarrationInput): Promise<NarrationResult> {
   if (!checked.ok) {
     // Silently. Never publish a suspect narrative; never surface the rejection to the
     // cohort. The member still gets their facts.
-    return { kind: 'facts_only', reason: checked.reason };
+    return { kind: 'facts_only', reason: checked.reason, usage };
   }
 
-  return { kind: 'narrated', narrative: checked.narrative, cacheKey };
+  return { kind: 'narrated', narrative: checked.narrative, cacheKey, usage };
 }
 
 /**
