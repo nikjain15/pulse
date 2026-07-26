@@ -180,6 +180,8 @@ function SettingsView() {
 
         <PostsCard posts={posts} onError={setError} />
 
+        <UsageCard />
+
         <DisconnectCard
           onDisconnect={() =>
             run('Disconnect didn’t finish. Nothing was deleted — try again.', async () => {
@@ -209,6 +211,63 @@ function Card({
       {description && <p className="mt-1 text-xs text-zinc-400">{description}</p>}
       <div className="mt-3">{children}</div>
     </section>
+  );
+}
+
+/**
+ * The live cost/usage counter (TECHNICAL_NOTES §9). The cost story was a projection; this
+ * shows the measured total. Read-only, aggregate only — no narrative, member, or key. Reads
+ * `/api/usage`, which returns zeros until the Admin SDK is configured, so it always renders.
+ */
+type UsageSnapshot = {
+  calls: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadInputTokens: number;
+  costUsd: number;
+  cacheHitRate: number;
+};
+
+function UsageCard() {
+  const [usage, setUsage] = useState<UsageSnapshot | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    fetch('/api/usage')
+      .then((r) => (r.ok ? (r.json() as Promise<UsageSnapshot>) : null))
+      .then((u) => {
+        if (live && u) setUsage(u);
+      })
+      .catch(() => {
+        // A telemetry read must never break the settings screen. Stay quiet.
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  return (
+    <Card
+      title="Model spend"
+      description="What Pulse's narration has actually cost, all-time — the live counter behind the projected cost story."
+    >
+      {usage === null ? (
+        <p className="text-xs text-zinc-400">No spend recorded yet.</p>
+      ) : (
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-zinc-300">
+          <dt className="text-zinc-500">Model calls</dt>
+          <dd className="text-right tabular-nums">{usage.calls.toLocaleString()}</dd>
+          <dt className="text-zinc-500">Total cost</dt>
+          <dd className="text-right tabular-nums">${usage.costUsd.toFixed(4)}</dd>
+          <dt className="text-zinc-500">Input tokens</dt>
+          <dd className="text-right tabular-nums">{usage.inputTokens.toLocaleString()}</dd>
+          <dt className="text-zinc-500">Output tokens</dt>
+          <dd className="text-right tabular-nums">{usage.outputTokens.toLocaleString()}</dd>
+          <dt className="text-zinc-500">Cache-hit rate</dt>
+          <dd className="text-right tabular-nums">{(usage.cacheHitRate * 100).toFixed(1)}%</dd>
+        </dl>
+      )}
+    </Card>
   );
 }
 

@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { narrate, type NarrationResult } from '@/lib/narrate';
 import { evictExpired, hitRateLimit, type RateLimitState } from '@/lib/rate-limit';
+import { recordCall } from '@/lib/usage-admin';
 import type { Evidence } from '@/lib/types';
+
+/** The pinned model, mirrored here only to attribute cost. Same default as lib/narrate. */
+const MODEL = process.env.ANTHROPIC_MODEL ?? 'claude-opus-4-8';
 
 /**
  * Per-IP rate limit, module-level so it survives between requests on a warm instance.
@@ -108,6 +112,13 @@ export async function POST(request: Request) {
     // request must never turn it into an unbounded input. 1000 PRs is far above a pilot.
     narratedKeys: (Array.isArray(body.narratedKeys) ? body.narratedKeys : []).slice(0, 1000),
   });
+
+  // Record what the call spent, if one was made. Best-effort and awaited so the write lands
+  // before the serverless instance can freeze; `recordCall` never throws and no-ops when the
+  // Admin SDK isn't configured (dev, tests). Telemetry never blocks or breaks narration.
+  if (result.kind !== 'skipped_cached' && result.usage) {
+    await recordCall({ model: MODEL, kind: 'narrate', usage: result.usage });
+  }
 
   // 200 on every path: facts_only and skipped_cached are outcomes the caller handles, not
   // errors. narrate() never throws.
