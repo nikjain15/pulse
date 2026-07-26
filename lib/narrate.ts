@@ -108,6 +108,14 @@ export async function narrate(input: NarrationInput): Promise<NarrationResult> {
       // Effort low and no thinking: this is one sentence about a handful of commits, not a
       // reasoning problem. Omitting `thinking` on Opus 4.8 runs without it.
       output_config: { effort: 'low' },
+      // No `temperature` here — and that is deliberate, not an oversight. For an auto-publish
+      // path the instinct is `temperature: 0` for determinism, but the pinned model
+      // (`claude-opus-4-8`) REMOVED the sampling parameters: sending temperature/top_p/top_k
+      // returns a 400. Setting it would silently 400 every call, and since narrate() degrades
+      // any error to facts-only, the entire narration feature would go dark in production
+      // while the mocked tests stayed green. So the auditability dial here is not sampling —
+      // it is `effort: 'low'` plus the deterministic `checkNarrative` backstop that gates what
+      // can ever reach the feed. The guard, not the temperature, is what makes this safe.
       messages: [
         {
           role: 'user',
