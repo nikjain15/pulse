@@ -1,4 +1,4 @@
-# Pulse - Evaluation Strategy
+# Pulse, Evaluation Strategy
 
 How Pulse establishes that its AI behaves: what is implemented today, and what is roadmap. Metrics are named, and claims are tied to real files.
 
@@ -8,14 +8,14 @@ Pulse auto-publishes model output to 64 people with no human in the loop. The ev
 
 ## The ladder
 
-### 1. Deterministic unit tests (implemented - the backbone)
+### 1. Deterministic unit tests (implemented, the backbone)
 
 The guard, the cache, and the contract are pure functions and are tested exhaustively.
 
-- **Narrative guard** - `tests/unit/sense.test.ts`, `tests/unit/narrate.test.ts` exercise `checkNarrative` for: empty, over-length, markup/HTML, and the load-bearing `names_another_member` case, including Unicode evasions (zero-width splice, combining-mark variants) that `foldForMention` must fold.
-- **Generated adversarial matrix** - `tests/unit/gen-sense.test.ts`, `tests/unit/gen-voice.test.ts`, and others table-drive many inputs (digits, single words, 200-char branches, unicode, empty) so coverage does not depend on a human enumerating cases.
-- **Cache correctness** - `narrationCacheKey` / `shouldNarrate` are tested so a cache miss on unchanged work (a budget bug) is caught.
-- **Cross-app contract** - `tests/unit/contract-golden.test.ts` pins exact contract values; `scripts/audit/contract-drift.mjs` runs it in *both* Pulse and Rally.
+- **Narrative guard:** `tests/unit/sense.test.ts`, `tests/unit/narrate.test.ts` exercise `checkNarrative` for: empty, over-length, markup/HTML, and the load-bearing `names_another_member` case, including Unicode evasions (zero-width splice, combining-mark variants) that `foldForMention` must fold.
+- **Generated adversarial matrix:** `tests/unit/gen-sense.test.ts`, `tests/unit/gen-voice.test.ts`, and others table-drive many inputs (digits, single words, 200-char branches, unicode, empty) so coverage does not depend on a human enumerating cases.
+- **Cache correctness:** `narrationCacheKey` / `shouldNarrate` are tested so a cache miss on unchanged work (a budget bug) is caught.
+- **Cross-app contract:** `tests/unit/contract-golden.test.ts` pins exact contract values; `scripts/audit/contract-drift.mjs` runs it in *both* Pulse and Rally.
 
 **Named metric:** on the guard, the safety-relevant target is **recall on the `names_another_member` class = 100%** (no peer-naming sentence may pass). Because the guard is deterministic, this is asserted directly rather than sampled. False-positive rate (rejecting a legitimate self-narrative) is traded off deliberately toward more rejections, since the fallback is facts-only, not failure.
 
@@ -29,7 +29,7 @@ The guard, the cache, and the contract are pure functions and are tested exhaust
 
 ### 4. End-to-end (implemented, Playwright)
 
-`tests/e2e/*.spec.ts` (approval queue, ask-ladder, correction, degraded, celebration, privacy, etc.) drive the running app. `degraded.spec.ts` specifically asserts the facts-only path renders when the model is unavailable - the graceful-degradation eval at the UI layer.
+`tests/e2e/*.spec.ts` (approval queue, ask-ladder, correction, degraded, celebration, privacy, etc.) drive the running app. `degraded.spec.ts` specifically asserts the facts-only path renders when the model is unavailable, the graceful-degradation eval at the UI layer.
 
 ### 5. LLM-judge (roadmap)
 

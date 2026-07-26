@@ -1,4 +1,4 @@
-# Pulse - Product Requirements
+# Pulse, Product Requirements
 
 _The AI-first alternative to Jira: a project board that maintains itself._
 
@@ -22,18 +22,18 @@ The insight Pulse is built on: for a team already shipping through version contr
 
 ## 3. Jobs-to-be-done
 
-1. **Sense** - "When I push work, I want my status to reflect it automatically, in language a human reads."
-2. **Bank** - "When a problem gets solved, I want the *how* captured so it is reusable."
-3. **Broker** - "When I am stuck on something already solved, I want to be introduced to the solver."
+1. **Sense:** "When I push work, I want my status to reflect it automatically, in language a human reads."
+2. **Bank:** "When a problem gets solved, I want the *how* captured so it is reusable."
+3. **Broker:** "When I am stuck on something already solved, I want to be introduced to the solver."
 
 The product is a three-layer ladder. Layer 1 (Sense) is live; Layers 2 and 3 are staged (see roadmap). This matches the README's own honesty table and the actual code paths.
 
 ## 4. What Pulse does (verified in code)
 
-- **Senses work** - a poll reads each member's commits and PRs; `lib/narrate.ts` turns the evidence into one plain-English status sentence per member, grounded in the actual commit/PR evidence (`lib/sense.ts` `formatEvidence`).
-- **Publishes live** - narratives write to Firestore and render in realtime to the cohort; there is no manual "update" action.
-- **Degrades to facts** - when the model is unavailable, refuses, or produces a suspect sentence, Pulse publishes **facts only** (commit counts, PR titles) rather than nothing or a lie (`narrate()` returns `facts_only`).
-- **Flags stuck work and brokers introductions** - the Bank/Broker layers (`lib/extract.ts`, `lib/introductions.ts`) are designed and partially surfaced, not yet fully automated. Framed as roadmap below.
+- **Senses work:** a poll reads each member's commits and PRs; `lib/narrate.ts` turns the evidence into one plain-English status sentence per member, grounded in the actual commit/PR evidence (`lib/sense.ts` `formatEvidence`).
+- **Publishes live:** narratives write to Firestore and render in realtime to the cohort; there is no manual "update" action.
+- **Degrades to facts:** when the model is unavailable, refuses, or produces a suspect sentence, Pulse publishes **facts only** (commit counts, PR titles) rather than nothing or a lie (`narrate()` returns `facts_only`).
+- **Flags stuck work and brokers introductions:** the Bank/Broker layers (`lib/extract.ts`, `lib/introductions.ts`) are designed and partially surfaced, not yet fully automated. Framed as roadmap below.
 
 ## 5. Success metrics
 
@@ -56,7 +56,7 @@ The product is a three-layer ladder. Layer 1 (Sense) is live; Layers 2 and 3 are
 
 The pilot ran against a fixed, small credit budget (~\$11). Uncached, 65 members on a 15-minute poll is ~6,240 model calls/day (~\$524 over the pilot). The identity-plus-SHA-range cache (`narrationCacheKey`, `shouldNarrate` in `lib/sense.ts`) collapses that to ~325 calls/day (~\$0.65/day, ~\$27 over the pilot). Cost engineering is therefore a *product requirement*, documented as such in code: "A cache miss on an unchanged range is a bug, not an inefficiency."
 
-## 8. Roadmap - Now / Next / Later
+## 8. Roadmap, Now / Next / Later
 
 **Now (live, in code)**
 - Layer 1 Sense: commit/PR → plain-English status, auto-published, realtime.
