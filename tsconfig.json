@@ -20,7 +20,11 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@conduit/agent": ["./conduit/packages/agent/src/index.ts"],
+      "@conduit/client": ["./conduit/packages/client/src/index.ts"],
+      "@conduit/mcp": ["./conduit/packages/mcp/src/index.ts"],
+      "@conduit/inference": ["./conduit/packages/inference/src/core.ts"]
     }
   },
   "include": [

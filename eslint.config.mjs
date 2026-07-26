@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored Conduit sources (copied, not forked — see conduit/VENDOR.md). Lint the
+    // Pulse code that uses them, not the upstream files themselves.
+    "conduit/**",
   ]),
 ]);
 

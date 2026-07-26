@@ -1,10 +1,24 @@
 import { NextResponse } from 'next/server';
+import Anthropic from '@anthropic-ai/sdk';
 import { planActions, type HistoryTurn, type SharedNote } from '@/lib/agent-plan';
 import type { AgentAction, BoardContext } from '@/lib/agent';
+import { runAskAgent } from '@/lib/ask-agent';
 import { evictExpired, hitRateLimit, type RateLimitState } from '@/lib/rate-limit';
 import { adminDb, busDb } from '@/lib/broker-admin';
 import { verifyUid, getHandle } from '@/lib/auth-server';
 import { logSharedActivity, readSharedMemory, rememberShared } from '@/lib/shared-context';
+
+/**
+ * The generative ANSWER path (a question or greeting, with no board action to take) is produced
+ * by a bounded Conduit agent loop (`lib/ask-agent.ts`), whose output is passed through the
+ * unchanged deterministic guard `checkNarrative` before it is shown. The ACTION path
+ * (`planActions` + `validatePlan`) is untouched. This is a pure enhancement of the answer, gated
+ * so it degrades to the prior behavior: with no API key, or `PULSE_ASK_AGENT=0`, or when the
+ * request produced a board action, the loop is skipped and the plan is returned exactly as before.
+ */
+function askAgentEnabled(): boolean {
+  return Boolean(process.env.ANTHROPIC_API_KEY) && process.env.PULSE_ASK_AGENT !== '0';
+}
 
 // The bus reads/writes need the Admin SDK, so this route runs on the Node.js runtime. Everything
 // bus-related is additive and best-effort: with no ID token or no service-account key it is skipped
@@ -106,6 +120,34 @@ export async function POST(request: Request) {
   }
 
   const result = await planActions(body.utterance, body.context, cleanHistory(body.history), sharedMemory);
+
+  // Generative answer path: when there is no board action to take, (re)generate the shown answer
+  // through the bounded Conduit agent loop and pass it through the deterministic guard. Best-effort
+  // and fully gated — any failure falls back to the planner's own answer, so behavior never regresses.
+  if (askAgentEnabled() && result.actions.length === 0) {
+    try {
+      const agentOut = await runAskAgent({
+        utterance: body.utterance,
+        ctx: body.context,
+        identity: {
+          actor: { handle, displayName: handle ?? 'you' },
+          // The route has no cohort roster to hand the guard; the markup/length/empty checks still
+          // apply. Peer-name blocking is exercised directly against checkNarrative in the tests.
+          otherMembers: [],
+        },
+        anthropic: new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! }),
+      });
+      if (agentOut.answer) {
+        result.answer = agentOut.answer;
+      } else if (agentOut.blocked) {
+        // The loop produced text the guard refused: never show it. Drop the answer quietly.
+        delete result.answer;
+      }
+      // If the loop produced nothing at all, keep the planner's original answer as-is.
+    } catch {
+      /* keep planActions' answer; the agent loop is an enhancement, never a dependency */
+    }
+  }
 
   // Durable "remember this" facts are written HERE, server-side, under the verified handle — the
   // bus is Admin-only. They are always stripped from the returned plan so the client executor
