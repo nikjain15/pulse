@@ -1,13 +1,13 @@
-# Pulse - Architecture
+# Pulse, Architecture
 
 Grounded in the actual code paths under `lib/`, `app/api/`, and `firestore.rules`. File references are to this repo.
 
 ## Stack
 
-- **Next.js 16 / React 19 / TypeScript** - app router, server routes under `app/api/*`.
-- **Firestore (realtime)** - client SDK in the browser for live reads; `firebase-admin` server-side for privileged writes. Security enforced by `firestore.rules` (~21 KB of rules, tested).
-- **Server-side AI** - `@anthropic-ai/sdk`, model `claude-opus-4-8` (env `ANTHROPIC_MODEL`), called only from server routes. The API key never reaches the client.
-- **Vercel** - hosting and cron/poll trigger. Live at pulsecohort.vercel.app.
+- **Next.js 16 / React 19 / TypeScript:** app router, server routes under `app/api/*`.
+- **Firestore (realtime):** client SDK in the browser for live reads; `firebase-admin` server-side for privileged writes. Security enforced by `firestore.rules` (~21 KB of rules, tested).
+- **Server-side AI:** `@anthropic-ai/sdk`, model `claude-opus-4-8` (env `ANTHROPIC_MODEL`), called only from server routes. The API key never reaches the client.
+- **Vercel:** hosting and cron/poll trigger. Live at pulsecohort.vercel.app.
 
 ## Component overview
 
@@ -99,11 +99,11 @@ The `names_another_member` rule is the load-bearing one: injection's payoff is p
 
 A real, working mechanism, not a mock:
 
-- **Shared contract** - `lib/shared-context-contract.ts` defines the paths (`sharedMemory/{handle}`, `sharedActivity/{handle}`, `agentTasks`), handle normalization, and the legal task lifecycle (`pending → claimed → done|failed`, `canTransition`).
-- **Adapter** - `lib/shared-context.ts` implements `dispatchTask`, `claimTasks`, `completeTask`, `rememberShared`, `logSharedActivity`. Claiming and completion run inside `db.runTransaction` so a task can be claimed once and only follows legal transitions. `APP = 'pulse'` is the only per-app difference from Rally's identical adapter.
-- **Live routes** - `app/api/context/dispatch/route.ts` (one app's agent asks another's), `app/api/context/inbox/route.ts` (claim + complete), `app/api/ask-pulse/route.ts` (reads/writes shared memory).
-- **Drift guard** - `scripts/audit/contract-drift.mjs` runs *both* apps' behavioral golden tests (`tests/unit/contract-golden.test.ts`) and fails if either contract drifts. Behavioral, not textual, so formatting differences do not false-positive.
-- **Cross-app tests** - `tests/integration/shared-context.test.ts` and `tests/integration/cross-app-regression.test.ts` exercise the lifecycle against a real Firestore emulator.
+- **Shared contract:** `lib/shared-context-contract.ts` defines the paths (`sharedMemory/{handle}`, `sharedActivity/{handle}`, `agentTasks`), handle normalization, and the legal task lifecycle (`pending → claimed → done|failed`, `canTransition`).
+- **Adapter:** `lib/shared-context.ts` implements `dispatchTask`, `claimTasks`, `completeTask`, `rememberShared`, `logSharedActivity`. Claiming and completion run inside `db.runTransaction` so a task can be claimed once and only follows legal transitions. `APP = 'pulse'` is the only per-app difference from Rally's identical adapter.
+- **Live routes:** `app/api/context/dispatch/route.ts` (one app's agent asks another's), `app/api/context/inbox/route.ts` (claim + complete), `app/api/ask-pulse/route.ts` (reads/writes shared memory).
+- **Drift guard:** `scripts/audit/contract-drift.mjs` runs *both* apps' behavioral golden tests (`tests/unit/contract-golden.test.ts`) and fails if either contract drifts. Behavioral, not textual, so formatting differences do not false-positive.
+- **Cross-app tests:** `tests/integration/shared-context.test.ts` and `tests/integration/cross-app-regression.test.ts` exercise the lifecycle against a real Firestore emulator.
 
 Maturity: **working mechanism, test-proven, wired to live API routes.** Full cross-app operation requires the sibling Rally checkout (`../nikjain15-project-2`); the drift script skips-with-warning if it is absent. Framed honestly on the site as "a working demonstration."
 
