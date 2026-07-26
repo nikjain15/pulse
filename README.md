@@ -153,12 +153,16 @@ firestore.rules    The product's ethical promises, enforced.
 ```bash
 npm run typecheck
 npm run lint
-npm run test:unit          # 108 tests - pure logic, no network
-npm run test:rules         # 92 tests - security rules against the emulator
-npm run test:e2e           # 40 tests - Playwright, B1–B10 + spec §4, on the emulator
+npm run test:unit          # 647 tests - pure logic, no network
+npm run test:rules         # 148 tests - security rules against the emulator
+npm run test:integration   # 55 tests - real lib/data against the emulator
+npm run test:e2e           # 52 tests - Playwright, B1–B10 + spec §4, on the emulator
 npm run test:e2e:smoke     # against the deployed URL
 npm run gate               # all of it
 ```
+
+That's ~900 defined cases across the four layers. (Earlier drafts of this section quoted
+108 / 92 / 40; that was stale and undercounted — see `docs/TECHNICAL_NOTES.md`.)
 
 **The rules tests are the highest-value tests here.** The rules encode the product's ethical
 promises, and a promise the rules don't enforce is marketing. Every attack is asserted denied: nobody
