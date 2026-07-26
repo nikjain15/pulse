@@ -118,6 +118,9 @@ export async function extractRecipe(input: ExtractionInput): Promise<ExtractionR
       // Same shape as narration: summarising a handful of commit messages is not a
       // reasoning problem.
       output_config: { effort: 'low' },
+      // No `temperature`: the pinned Opus 4.8 removed sampling params (they 400). Determinism
+      // on the publish path comes from `effort: 'low'` and the deterministic guard, not a
+      // temperature dial. See lib/narrate.ts for the full rationale.
       messages: [
         {
           role: 'user',
