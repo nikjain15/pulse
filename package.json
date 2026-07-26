@@ -15,6 +15,8 @@
     "test:e2e:managed": "BASE_URL=http://localhost:3000 playwright test --project full",
     "test:e2e:smoke": "PLAYWRIGHT_SMOKE=1 playwright test --project smoke",
     "emulator": "firebase emulators:start --only firestore,auth --project demo-pulse",
+    "eval:guard": "node evals/run-guard-eval.ts",
+    "eval:groundedness": "node evals/run-groundedness-eval.ts",
     "test:drift": "node scripts/audit/contract-drift.mjs",
     "test:cross-app": "node scripts/audit/contract-drift.mjs && firebase emulators:exec --only firestore,auth --project demo-pulse \"vitest run --project integration tests/integration/shared-context.test.ts tests/integration/cross-app-regression.test.ts\"",
     "test:scale": "firebase emulators:exec --only firestore,auth --project demo-pulse \"node scripts/scale/run.mjs\"",

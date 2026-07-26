@@ -31,9 +31,14 @@ The guard, the cache, and the contract are pure functions and are tested exhaust
 
 `tests/e2e/*.spec.ts` (approval queue, ask-ladder, correction, degraded, celebration, privacy, etc.) drive the running app. `degraded.spec.ts` specifically asserts the facts-only path renders when the model is unavailable, the graceful-degradation eval at the UI layer.
 
-### 5. LLM-judge (roadmap)
+### 5. Groundedness / LLM-judge (implemented)
 
-Not implemented. Planned: sample published narratives and score them with an LLM judge on **groundedness** (every claim traceable to a commit/PR in the evidence) and **faithfulness** (no invented work). This is the natural next eval because narrative *accuracy* (as opposed to safety) is currently only spot-checked.
+Implemented at [`evals/run-groundedness-eval.ts`](../evals/run-groundedness-eval.ts). Where safety asks "does the narrative name someone else?", this asks the accuracy half: does what the narrative claims trace to the commit/PR evidence Pulse retrieved, or did the model invent work? It runs a labeled dataset (`evals/groundedness-dataset.json`) through two scorers over the same cases:
+
+- **`scoreGroundedness` (deterministic, the CI backbone):** pure and offline — it verifies the *checkable* claims (PR references, file names) against the retrieved evidence and reports accuracy vs labels, ungrounded catch-rate, and false-flag rate. Every label must be reproduced or the run exits non-zero, exactly like the guard eval.
+- **`judgeGroundedness` (LLM judge):** the richer judge scoped here originally. It scores a narrative against its evidence and returns a grounded/ungrounded verdict; it runs only when `ANTHROPIC_API_KEY` is set (it costs a model call) and is reported as agreement against the labels. Best-effort — a flaky judge never fails the run.
+
+Still spot-checked, not asserted: **faithfulness** of free-form prose that carries no checkable specific — the deterministic scorer deliberately does not second-guess phrasing, and the LLM judge is the path that covers it where a key exists.
 
 ### 6. A/B and model evals (roadmap)
 
@@ -48,7 +53,8 @@ Not implemented. Planned once traffic justifies it: A/B the narration prompt and
 | Rules | Allow/deny precision on the authorization matrix | Implemented |
 | Degradation | Facts-only fallback fires on every model failure mode | Implemented (unit + e2e) |
 | Cost | Cache-hit rate; model calls/day vs budget | Modeled in code + TESTING.md; live counter is roadmap |
-| Narrative accuracy | Groundedness / faithfulness via LLM judge | Roadmap |
+| Narrative accuracy | Groundedness: checkable claims trace to evidence (deterministic, asserted); LLM judge on top | Implemented |
+| Narrative accuracy | Faithfulness of unfalsifiable prose | Spot-checked (LLM judge where a key exists) |
 | Prompt/model choice | A/B usefulness vs cost; golden model comparison | Roadmap |
 
 ## Optional runnable eval harness
