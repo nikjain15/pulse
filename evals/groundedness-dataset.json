@@ -1,0 +1,61 @@
+{
+  "note": "Labeled groundedness cases. Each narrative is scored against its evidence + raw material. `grounded: true` means every checkable claim traces to the evidence; `grounded: false` means the narrative invents a specific (a PR number, a file) that the evidence does not support. The deterministic scorer must reproduce every label; the optional LLM judge is scored for agreement against these labels.",
+  "cases": [
+    {
+      "id": "grounded-plain",
+      "grounded": true,
+      "narrative": "Fixed the OAuth redirect loop after a two-hour fight.",
+      "evidence": { "commits": 6, "prNumbers": [40], "files": ["lib/auth.ts"], "spanHours": 2 },
+      "material": ["Fix the OAuth redirect loop", "auth: stop double-redirect"]
+    },
+    {
+      "id": "grounded-real-pr",
+      "grounded": true,
+      "narrative": "Landed PR 40 tightening the auth redirect handling.",
+      "evidence": { "commits": 3, "prNumbers": [40, 41], "files": ["lib/auth.ts"], "spanHours": 1 },
+      "material": ["Merge PR #40"]
+    },
+    {
+      "id": "grounded-real-file",
+      "grounded": true,
+      "narrative": "Reworked lib/sense.ts to normalise mentions before scanning.",
+      "evidence": { "commits": 4, "prNumbers": [], "files": ["lib/sense.ts", "tests/unit/sense.test.ts"], "spanHours": 3 },
+      "material": ["normalise mentions in sense"]
+    },
+    {
+      "id": "grounded-file-in-material",
+      "grounded": true,
+      "narrative": "Updated README.md with the new setup steps.",
+      "evidence": { "commits": 1, "prNumbers": [], "files": [], "spanHours": null },
+      "material": ["docs: rewrite README.md setup section"]
+    },
+    {
+      "id": "ungrounded-invented-pr",
+      "grounded": false,
+      "narrative": "Shipped PR 999 overhauling the entire billing system.",
+      "evidence": { "commits": 6, "prNumbers": [40], "files": ["lib/auth.ts"], "spanHours": 2 },
+      "material": ["Fix the OAuth redirect loop"]
+    },
+    {
+      "id": "ungrounded-invented-file",
+      "grounded": false,
+      "narrative": "Rewrote lib/payments.ts to add Stripe support.",
+      "evidence": { "commits": 4, "prNumbers": [], "files": ["lib/sense.ts"], "spanHours": 3 },
+      "material": ["normalise mentions in sense"]
+    },
+    {
+      "id": "ungrounded-hash-pr",
+      "grounded": false,
+      "narrative": "Closed out #123 and #124 across the sensing pipeline.",
+      "evidence": { "commits": 2, "prNumbers": [123], "files": ["lib/sync.ts"], "spanHours": 1 },
+      "material": ["wip"]
+    },
+    {
+      "id": "ungrounded-invented-config",
+      "grounded": false,
+      "narrative": "Migrated the project to next.config.ts and vitest.config.ts.",
+      "evidence": { "commits": 1, "prNumbers": [], "files": ["lib/sense.ts"], "spanHours": null },
+      "material": ["tweak sense thresholds"]
+    }
+  ]
+}
