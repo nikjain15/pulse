@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Cancel superseded runs on the same ref so a fast follow-up push doesn't queue behind a stale run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: typecheck · lint · unit · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      # The production build is gated too. The emulator-backed suites (rules / integration / e2e)
+      # need Java and a Firebase emulator and are run via `npm run gate` locally; CI keeps to the
+      # checks that need no emulator. Dummy public Firebase values let the static prerender succeed
+      # without any real secret.
+      - name: Build
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: dummy
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: demo-pulse.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: demo-pulse
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: demo-pulse.appspot.com
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "1"
+          NEXT_PUBLIC_FIREBASE_APP_ID: "1:1:web:1"
+        run: npm run build

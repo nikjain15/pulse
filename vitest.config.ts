@@ -4,7 +4,16 @@ import { defineConfig } from 'vitest/config';
 // tsconfig defines `@/*` -> `./*`. Vitest resolves modules itself and doesn't read
 // tsconfig paths, so it needs the same alias or `@/lib/...` imports fail at runtime
 // while typecheck stays green.
-const alias = { '@': fileURLToPath(new URL('.', import.meta.url)) };
+const root = fileURLToPath(new URL('.', import.meta.url));
+const alias = {
+  '@': root,
+  // Vendored Conduit packages (see conduit/VENDOR.md). Same mapping as tsconfig `paths`,
+  // repeated here because Vitest resolves modules itself and does not read tsconfig.
+  '@conduit/agent': `${root}conduit/packages/agent/src/index.ts`,
+  '@conduit/client': `${root}conduit/packages/client/src/index.ts`,
+  '@conduit/mcp': `${root}conduit/packages/mcp/src/index.ts`,
+  '@conduit/inference': `${root}conduit/packages/inference/src/core.ts`,
+};
 
 // Two projects, because they need incompatible environments: unit tests are pure and
 // parallel, rules tests talk to one shared emulator and must not race each other.
