@@ -3,6 +3,12 @@ import { runAgent, type CallModel, type Skill, type StepRecord, type Tool } from
 import type { ConduitClient, InferResult } from '@conduit/client';
 import { createPulseConduitClient } from './conduit/client';
 import { decisionFromInfer, reportDecision } from './conduit/report-usage';
+import {
+  difficultyTier,
+  looksLowConfidence,
+  tierModel,
+  type AskTier,
+} from './conduit/routing';
 import { checkNarrative } from './sense';
 import type { BoardContext } from './agent';
 
@@ -43,6 +49,10 @@ export type AskAgentResult = {
   steps: StepRecord[];
   stoppedAtCap: boolean;
   loadedSkills: string[];
+  /** The tier chosen for each model turn, in order. Lets callers/tests see the cascade at work. */
+  tiers: AskTier[];
+  /** True when a low-confidence cheap first pass was re-run on the reasoning tier. */
+  escalated: boolean;
 };
 
 /* ── Read-only board tools ─────────────────────────────────────────────────── */
@@ -202,25 +212,36 @@ export function parseTurn(text: string): ModelTurn {
 /** The useCase reported for every model call on this path. */
 const ASK_USE_CASE = 'ask-pulse';
 
-/** The injected model call: one Conduit `infer`, mapped to a loop turn. Each metered `InferResult`
- *  is handed to `onInfer` so the caller can report it once the guard outcome is known. The model
- *  path itself is unchanged: `onInfer` is a passive observer that cannot alter the turn. */
+/** The injected model call: one Conduit `infer`, mapped to a loop turn. The model to target is
+ *  chosen PER TURN by `tierFor(stepIndex)` and passed as `pinModel`, so the vendored router runs
+ *  the real cascade (cheap by default, reasoning when the ask is hard) while every call stays
+ *  metered exactly as before. Each metered `InferResult` is handed to `onInfer` so the caller can
+ *  report it once the guard outcome is known; the chosen tiers accumulate in the returned array.
+ *  The model path itself is unchanged: `onInfer` is a passive observer that cannot alter the turn. */
 function makeCallModel(
   client: ConduitClient,
   tools: Tool[],
   maxTokens: number,
+  tierFor: (stepIndex: number) => AskTier,
   onInfer: (result: InferResult) => void,
-): CallModel {
-  return async ({ system, messages }) => {
+): { callModel: CallModel; tiers: AskTier[] } {
+  const tiers: AskTier[] = [];
+  let stepIndex = 0;
+  const callModel: CallModel = async ({ system, messages }) => {
+    const tier = tierFor(stepIndex);
+    stepIndex += 1;
+    tiers.push(tier);
     const result = await client.infer({
       useCase: ASK_USE_CASE,
       system: `${system}\n\n${toolMenu(tools)}`,
       messages,
       maxTokens,
+      pinModel: tierModel(tier),
     });
     onInfer(result);
     return parseTurn(result.output);
   };
+  return { callModel, tiers };
 }
 
 export type RunAskAgentInput = {
@@ -246,31 +267,70 @@ export async function runAskAgent(input: RunAskAgentInput): Promise<AskAgentResu
 
   const tools = boardTools(ctx, today);
   const client = createPulseConduitClient(anthropic);
-  // Collect each metered model call so it can be reported once the guard outcome is known. This
-  // is a passive sink: it never feeds back into the loop or the returned answer.
-  const metered: InferResult[] = [];
-  const callModel = makeCallModel(client, tools, maxTokens, (r) => metered.push(r));
 
-  let run;
-  try {
-    run = await runAgent({
-      goal: utterance.slice(0, 600),
-      tools,
-      skills: askSkills(),
-      callModel,
-      maxSteps,
-      system: SYSTEM,
-      // No-authority invariant: read-only path, side effects never allowed.
-      allowSideEffects: false,
-    });
-  } catch {
-    // A provider or loop failure yields no answer. Report whatever metered calls did happen so
-    // usage stays accurate; a mid-run failure gates nothing, so no gateStatus.
-    reportMetered(metered);
-    return { steps: [], stoppedAtCap: false, loadedSkills: [] };
+  // One bounded loop pass. `forceReasoning` pins every turn to the reasoning tier (used for the
+  // low-confidence retry); otherwise the tier is chosen per turn from the difficulty signals.
+  const runOnce = async (forceReasoning: boolean) => {
+    const metered: InferResult[] = [];
+    const tierFor = (stepIndex: number): AskTier =>
+      forceReasoning ? 'reasoning' : difficultyTier({ utterance, stepIndex });
+    const { callModel, tiers } = makeCallModel(client, tools, maxTokens, tierFor, (r) =>
+      metered.push(r),
+    );
+    try {
+      const run = await runAgent({
+        goal: utterance.slice(0, 600),
+        tools,
+        skills: askSkills(),
+        callModel,
+        maxSteps,
+        system: SYSTEM,
+        // No-authority invariant: read-only path, side effects never allowed.
+        allowSideEffects: false,
+      });
+      return { run, tiers, metered };
+    } catch {
+      // A provider or loop failure yields no run; the caller degrades to no answer.
+      return { run: undefined, tiers, metered };
+    }
+  };
+
+  // First pass: cheap by default, escalating only when the ask itself is hard (long/complex, or the
+  // loop goes multi-step).
+  const first = await runOnce(false);
+  let run = first.run;
+  let tiers = first.tiers;
+  const metered: InferResult[] = [...first.metered];
+  let escalated = false;
+
+  // Low-confidence escalation: if the cheap first pass produced a hedged/empty answer and no turn
+  // ever reached the reasoning tier, re-run once forced to the reasoning tier and take that answer.
+  if (
+    run?.answer !== undefined &&
+    !tiers.includes('reasoning') &&
+    looksLowConfidence(run.answer)
+  ) {
+    const retry = await runOnce(true);
+    metered.push(...retry.metered);
+    escalated = true;
+    tiers = retry.tiers;
+    if (retry.run) run = retry.run;
   }
 
-  const base = { steps: run.steps, stoppedAtCap: run.stoppedAtCap, loadedSkills: run.loadedSkills };
+  if (!run) {
+    // Report whatever metered calls did happen so usage stays accurate; a mid-run failure gates
+    // nothing, so no gateStatus.
+    reportMetered(metered);
+    return { steps: [], stoppedAtCap: false, loadedSkills: [], tiers, escalated };
+  }
+
+  const base = {
+    steps: run.steps,
+    stoppedAtCap: run.stoppedAtCap,
+    loadedSkills: run.loadedSkills,
+    tiers,
+    escalated,
+  };
 
   const raw = run.answer;
   if (raw === undefined || raw.trim().length === 0) {
