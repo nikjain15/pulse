@@ -1,12 +1,20 @@
 # Pulse
 
+> **Jira, if it filled itself in: a project board that reads your commits and PRs and writes its own status.**
+
+[![CI](https://github.com/nikjain15/pulse/actions/workflows/ci.yml/badge.svg)](https://github.com/nikjain15/pulse/actions/workflows/ci.yml)
+[![tests](https://img.shields.io/badge/tests-965%20passing-brightgreen.svg)](#tests)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+**Live: [pulsecohort.vercel.app](https://pulsecohort.vercel.app)** · Source: this repo · Piloted with the cohort, a 65-person developer program.
+
+<!-- DEMO_GIF -->
+
 **Project 1 · [@nikjain15](https://github.com/nikjain15)** · Hult Cohort Developer Program, Summer Pilot 2026
 
-> **Pulse, the board that updates itself.** It senses the work, banks how it got solved, and
-> hands that to the next person who gets stuck.
-
-**Production: https://pulsecohort.vercel.app** · Every user-facing string follows
-[VOICE.md](VOICE.md); the design system is [DESIGN-SPEC.md](DESIGN-SPEC.md) §4.
+Pulse is the board that updates itself. It senses the work, banks how it got solved, and hands that
+to the next person who gets stuck. Every user-facing string follows [VOICE.md](VOICE.md); the design
+system is [DESIGN-SPEC.md](DESIGN-SPEC.md) §4.
 
 Every task board dies the same way: updating it is manual, boring, and the first thing to go. This
 cohort's work is already legible, 65 people running coding agents against public repos. The status is
@@ -20,6 +28,41 @@ already out there. Nobody should be typing it in.
 
 Remove the model and there's no product left. That's the test for AI-first, and why a chat box in the
 corner was rejected.
+
+---
+
+## How the AI works
+
+Pulse reads attacker-controllable text (commit messages, PR titles, branch names) and can auto-publish
+a model-written summary to the whole cohort with no human in the loop. The design starts from that
+threat, not from a feature list.
+
+- **A deterministic guard gates every published summary.** `checkNarrative` (`lib/sense.ts`) is a pure,
+  network-free function that runs before any narrative ships. A narrative may only ever describe its own
+  actor, so the guard rejects anything that names a peer by name or `@handle`, plus markup injection,
+  empty or over-length output, and Unicode evasions (zero-width spaces, combining marks). This is the
+  strongest property in the system: injection's whole payoff is publishing something about someone else,
+  and the guard closes that off deterministically rather than asking a model to police itself.
+- **Named guard eval metrics, framed honestly.** The guard runs against a labeled 49-row fixture
+  (`evals/guard-fixture.json`) scored by `lib/eval-metrics.ts`, whose math is unit-tested against a
+  hand-built confusion matrix. Over that fixture the guard scores 100% precision, recall, and F1
+  (TP=26, FP=0, FN=0, TN=23). This is a fixture eval of the guard, not a production-accuracy claim, and
+  the fixture does not exercise the documented cross-script homoglyph blind spot (`foldForMention` in
+  `lib/sense.ts`), which stays an open residual.
+- **The answer path is a bounded Conduit agent loop.** Ask-Pulse's generative answers run through a
+  bounded reason-act loop (`lib/ask-agent.ts`) with a hard step cap. Each turn routes per ask across a
+  cheap and a reasoning tier (`lib/conduit/routing.ts`): Haiku 4.5 handles the bulk of asks and only
+  genuinely hard ones escalate to Opus 4.8. Routing is a pure, unit-testable function of per-turn
+  signals, and every produced answer still passes through `checkNarrative` before it is shown.
+- **The agent's tools are read-only.** The Conduit MCP surface (`lib/conduit/mcp-tools.ts`, [docs/MCP.md](docs/MCP.md))
+  exposes no tool that writes: it cannot create tasks, publish recipes, or touch the bus. Reads run
+  through an injected reader bound to a verified identity; with no verified caller, the tools return
+  "auth required" and no data. The agent is a planner with no more power than a signed-in user.
+- **Semantic retrieval exists but is dormant.** The `search_board` tool and the cosine rerank
+  (`lib/semantic-retrieval.ts`, `lib/conduit/rag/`) ship with tests, but the embed function is injected
+  and no embedding provider is wired at the Ask-Pulse route. Until a real embedder is injected, retrieval
+  degrades to structured queries plus substring matching. Semantic search is not live and is not claimed
+  as live.
 
 ---
 
@@ -160,16 +203,16 @@ firestore.rules    The product's ethical promises, enforced.
 ```bash
 npm run typecheck
 npm run lint
-npm run test:unit          # 681 tests - pure logic, no network
-npm run test:rules         # 148 tests - security rules against the emulator
-npm run test:integration   # 55 tests - real lib/data against the emulator
-npm run test:e2e           # 52 tests - Playwright, B1–B10 + spec §4, on the emulator
+npm run test:unit          # 696 tests, pure logic, no network
+npm run test:rules         # 148 tests, security rules against the emulator
+npm run test:integration   # 55 tests, real lib/data against the emulator
+npm run test:e2e           # 66 tests, Playwright, B1–B10 + spec §4, on the emulator
 npm run test:e2e:smoke     # against the deployed URL
 npm run gate               # all of it
 ```
 
-That's ~934 defined cases across the four layers. (Earlier drafts of this section quoted
-108 / 92 / 40; that was stale and undercounted — see `docs/TECHNICAL_NOTES.md`.)
+That's 965 defined cases across the four layers, the number in the test badge above, confirmed by
+running each suite.
 
 **The rules tests are the highest-value tests here.** The rules encode the product's ethical
 promises, and a promise the rules don't enforce is marketing. Every attack is asserted denied: nobody
