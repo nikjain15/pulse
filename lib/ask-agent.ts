@@ -1,7 +1,8 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { runAgent, type CallModel, type Skill, type StepRecord, type Tool } from '@conduit/agent';
-import type { ConduitClient } from '@conduit/client';
+import type { ConduitClient, InferResult } from '@conduit/client';
 import { createPulseConduitClient } from './conduit/client';
+import { decisionFromInfer, reportDecision } from './conduit/report-usage';
 import { checkNarrative } from './sense';
 import type { BoardContext } from './agent';
 
@@ -198,15 +199,26 @@ export function parseTurn(text: string): ModelTurn {
   return { finalAnswer: trimmed };
 }
 
-/** The injected model call: one Conduit `infer`, mapped to a loop turn. */
-function makeCallModel(client: ConduitClient, tools: Tool[], maxTokens: number): CallModel {
+/** The useCase reported for every model call on this path. */
+const ASK_USE_CASE = 'ask-pulse';
+
+/** The injected model call: one Conduit `infer`, mapped to a loop turn. Each metered `InferResult`
+ *  is handed to `onInfer` so the caller can report it once the guard outcome is known. The model
+ *  path itself is unchanged: `onInfer` is a passive observer that cannot alter the turn. */
+function makeCallModel(
+  client: ConduitClient,
+  tools: Tool[],
+  maxTokens: number,
+  onInfer: (result: InferResult) => void,
+): CallModel {
   return async ({ system, messages }) => {
     const result = await client.infer({
-      useCase: 'ask-pulse',
+      useCase: ASK_USE_CASE,
       system: `${system}\n\n${toolMenu(tools)}`,
       messages,
       maxTokens,
     });
+    onInfer(result);
     return parseTurn(result.output);
   };
 }
@@ -234,7 +246,10 @@ export async function runAskAgent(input: RunAskAgentInput): Promise<AskAgentResu
 
   const tools = boardTools(ctx, today);
   const client = createPulseConduitClient(anthropic);
-  const callModel = makeCallModel(client, tools, maxTokens);
+  // Collect each metered model call so it can be reported once the guard outcome is known. This
+  // is a passive sink: it never feeds back into the loop or the returned answer.
+  const metered: InferResult[] = [];
+  const callModel = makeCallModel(client, tools, maxTokens, (r) => metered.push(r));
 
   let run;
   try {
@@ -249,16 +264,34 @@ export async function runAskAgent(input: RunAskAgentInput): Promise<AskAgentResu
       allowSideEffects: false,
     });
   } catch {
+    // A provider or loop failure yields no answer. Report whatever metered calls did happen so
+    // usage stays accurate; a mid-run failure gates nothing, so no gateStatus.
+    reportMetered(metered);
     return { steps: [], stoppedAtCap: false, loadedSkills: [] };
   }
 
   const base = { steps: run.steps, stoppedAtCap: run.stoppedAtCap, loadedSkills: run.loadedSkills };
 
   const raw = run.answer;
-  if (raw === undefined || raw.trim().length === 0) return base;
+  if (raw === undefined || raw.trim().length === 0) {
+    reportMetered(metered);
+    return base;
+  }
 
   // Every generated answer passes through the existing deterministic guard before it is shown.
   const check = checkNarrative(raw, identity.actor, identity.otherMembers);
+  // Report each metered call, tagged with the guard outcome for this answer. Fire-and-forget: it
+  // is a NO-OP unless the gateway env is set and can never block or fail the answer below.
+  reportMetered(metered, check.ok ? 'allowed' : 'blocked');
+
   if (!check.ok) return { ...base, blocked: { reason: check.reason } };
   return { ...base, answer: check.narrative };
+}
+
+/** Fire-and-forget: ship each metered decision to the Conduit gateway, tagged with the useCase and
+ *  (when known) the guard outcome. NO-OP when the gateway env is absent; never throws. */
+function reportMetered(metered: InferResult[], gateStatus?: string): void {
+  for (const result of metered) {
+    void reportDecision(decisionFromInfer(ASK_USE_CASE, result, { gateStatus }));
+  }
 }
