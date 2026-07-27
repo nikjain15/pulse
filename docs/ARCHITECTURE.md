@@ -6,8 +6,9 @@ Grounded in the actual code paths under `lib/`, `app/api/`, and `firestore.rules
 
 - **Next.js 16 / React 19 / TypeScript:** app router, server routes under `app/api/*`.
 - **Firestore (realtime):** client SDK in the browser for live reads; `firebase-admin` server-side for privileged writes. Security enforced by `firestore.rules` (~21 KB of rules, tested).
-- **Server-side AI:** `@anthropic-ai/sdk`, model `claude-opus-4-8` (env `ANTHROPIC_MODEL`), called only from server routes. The API key never reaches the client.
+- **Server-side AI:** `@anthropic-ai/sdk`, called only from server routes. The API key never reaches the client. The auto-publish narration, extraction and brief paths call a single model (`claude-opus-4-8`, env `ANTHROPIC_MODEL`). The generative Ask-Pulse answer path routes through an embedded `@conduit/client` and picks a model per turn (see below).
 - **Vercel:** hosting and cron/poll trigger. Live at pulsecohort.vercel.app.
+- **MCP:** a separate, read-only Model Context Protocol server exposes the cohort's public activity to MCP clients. See [MCP.md](MCP.md).
 
 ## Component overview
 
@@ -22,9 +23,12 @@ graph TD
     NAR["lib/narrate.ts\nnarrate()"]
     EXT["lib/extract.ts\nBank extraction"]
     BRIEF["lib/brief.ts\nHome brief"]
-    PLAN["lib/agent-plan.ts\nAsk-Pulse agent"]
+    PLAN["lib/agent-plan.ts\nAsk-Pulse ACTION path\n(validatePlan)"]
+    ASK["lib/ask-agent.ts\nAsk-Pulse ANSWER path\n@conduit/agent loop"]
+    ROUTE["lib/conduit/routing.ts\nper-turn tier"]
+    CONDUIT["lib/conduit/client.ts\nembedded @conduit/client"]
     GUARD["lib/sense.ts\ncheckNarrative / checkRecipeBody\nshouldNarrate (cache)"]
-    SDK["@anthropic-ai/sdk\nclaude-opus-4-8"]
+    SDK["@anthropic-ai/sdk\nHaiku 4.5 default / Opus 4.8 escalation"]
   end
 
   subgraph Bus["Shared-context bus (cross-app)"]
@@ -47,6 +51,8 @@ graph TD
   GUARD -->|reject / no key / refusal| FS
   BRIEF --> SDK
   PLAN --> SDK
+  ASK --> ROUTE --> CONDUIT --> SDK
+  ASK -->|guarded answer| GUARD
   EXT --> SDK
   NAR --> FS
   FS <--> RULES <--> CLIENT
@@ -106,6 +112,27 @@ A real, working mechanism, not a mock:
 - **Cross-app tests:** `tests/integration/shared-context.test.ts` and `tests/integration/cross-app-regression.test.ts` exercise the lifecycle against a real Firestore emulator.
 
 Maturity: **working mechanism, test-proven, wired to live API routes.** Full cross-app operation requires the sibling Rally checkout (`../nikjain15-project-2`); the drift script skips-with-warning if it is absent. Framed honestly on the site as "a working demonstration."
+
+## Ask-Pulse: two paths, one guard
+
+Ask-Pulse has two distinct paths, and only one of them is a generative agent:
+
+- **The ACTION path** (create, move, edit a card) still runs through `lib/agent-plan.ts` + `validatePlan` unchanged. Anything with authority is deterministically re-resolved before it can touch the board; that re-resolution is Pulse's injection backstop for side-effecting tools.
+- **The generative ANSWER path** (the prose Pulse shows when you ask a question or say hello) is a bounded reason-act loop on the vendored `@conduit/agent` (`lib/ask-agent.ts`, see `conduit/VENDOR.md`). It exposes typed, **read-only** tools over the user's own board (`list_tasks`, `list_projects`, `find_task`, `search_board`, `board_stats`), loads skills at runtime by intent rather than through hard-coded branches, and never sets `allowSideEffects`, so a side-effecting tool would be refused by default. The model call is routed through an embedded `@conduit/client` (`lib/conduit/client.ts`), so every generation flows through Conduit's unified interface and returns a metered record.
+
+Both paths converge on the same backstop: every answer the loop produces passes through the unchanged deterministic `checkNarrative` before it can be shown or dispatched. The agent's output is untrusted model text until it passes exactly the check that gates published narration.
+
+### Per-turn model routing
+
+`lib/conduit/routing.ts` chooses a model per model turn instead of pinning one. The bulk of asks run on a cheap tier (Haiku 4.5, `claude-haiku-4-5`); an ask escalates to the reasoning tier (Opus 4.8, `ANTHROPIC_MODEL`) when it is long or multi-question, when the bounded loop goes multi-step, or when a cheap first pass comes back low-confidence (a hedged or empty answer triggers one reasoning-tier retry). The decision is a pure function of signals available at each turn, so it is deterministic and unit-tested, and it feeds `client.infer({ pinModel })`, so every call stays metered exactly as before. Routing only chooses which model id is targeted; with no API key the path is never reached, and every produced answer still passes `checkNarrative`.
+
+### Live-usage reporting (env-gated)
+
+Each metered call from the answer path can be reported to a central Conduit gateway (`lib/conduit/report-usage.ts`, `POST /v1/decisions`), tagged with the guard outcome. It is env-gated: it is a no-op unless both `CONDUIT_GATEWAY_URL` and `CONDUIT_GATEWAY_TOKEN` are set, and it is fire-and-forget, so it can never delay or change the answer. The default deployment behaves exactly as before.
+
+### Semantic retrieval (present, tested, dormant in production)
+
+`lib/semantic-retrieval.ts` (a cosine vector rerank over the vendored `@conduit/rag`) and the `search_board` tool exist and are unit-tested, but they are **dormant in production**. The embedder is injected, and no embedding provider is wired at the ask-pulse route (`app/api/ask-pulse/route.ts` calls `runAskAgent` without an `embed`). With none configured, `semanticRerank` returns `{ kind: 'disabled' }` and `search_board` degrades to the same case-insensitive substring match the exact-match path uses. So live retrieval is substring matching today; the semantic rerank activates only once a real embedder is injected. It is a strict enhancement, not a live capability, and is not claimed as one.
 
 ## Data model & security
 

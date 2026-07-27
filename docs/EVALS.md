@@ -59,6 +59,12 @@ Measured over the current fixture (real numbers, this is a fixture eval of the g
 
 Recall is a hard floor of 1.0 (the safety class: no must-block narrative may pass); precision, F1, and accuracy are floored at 0.95 in CI, just below the measured 1.000, so a regression that starts wrongly rejecting legitimate narratives fails the gate. Run it directly with `npm run eval:guard-metrics`.
 
+**Read the 100% honestly.** These are real numbers, but they are the guard's score on a fixture built for the cases the guard is designed to catch, not a production-accuracy claim. In particular, the fixture does **not** yet include the guard's one documented blind spot: cross-script homoglyphs (for example a Cyrillic character that renders like a Latin one) are not folded by `foldForMention`, so a peer name spelled with homoglyphs is a residual the guard does not catch and the fixture does not exercise. The 100% therefore says the guard handles the evasions in the fixture (name, `@handle`, zero-width, combining-mark), not that peer-naming is fully solved. Closing the homoglyph gap, and adding fixture rows for it, is tracked as follow-up.
+
+### 6a. Semantic retrieval tests (implemented, but the feature is dormant)
+
+`lib/semantic-retrieval.ts` (a cosine vector rerank over the vendored `@conduit/rag`) has its own unit tests covering ranking, the empty/`disabled` path, and the bad-retrieval `not_found` gate. The tests exercise the code with a mock embedder. Be clear about what this proves: it proves the rerank behaves correctly *when an embedder is injected*. In production no embedding provider is wired at the ask-pulse route, so the `search_board` tool degrades to substring matching and the semantic path never runs live. These are tests of a dormant feature, not evidence of live semantic retrieval quality. Retrieval quality on the live substring path is covered indirectly by the answer-path e2e tests, not by a retrieval metric.
+
 ### 7. A/B and model evals (roadmap)
 
 Not implemented. Planned once traffic justifies it: A/B the narration prompt and effort setting, measuring reader-reported usefulness against cost per member-day; and a small golden set to compare candidate models before changing `ANTHROPIC_MODEL`.
