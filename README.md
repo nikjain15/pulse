@@ -31,6 +31,7 @@ Deeper product and engineering write-ups live in [`docs/`](docs/):
 - [ARCHITECTURE.md](docs/ARCHITECTURE.md), system overview with component and sequence diagrams, grounded in the real code paths; includes the Pulse↔Rally cross-app dispatch design.
 - [EVALS.md](docs/EVALS.md), the eval ladder (deterministic → rules → integration → e2e; LLM-judge and A/B as roadmap) with named metrics.
 - [TECHNICAL_NOTES.md](docs/TECHNICAL_NOTES.md), the 12-point AI-engineering scorecard, model/orchestration detail, guardrails, and the honest cost breakdown.
+- [MCP.md](docs/MCP.md), the read-only Model Context Protocol server: the two cohort-read tools, the stdio entry, and the hosted URL shape.
 - [FDE_JOURNEY.md](docs/FDE_JOURNEY.md), how Pulse deploys into a live team: integration, secrets, rollout/cutover, observability, de-risking.
 
 A runnable, production-safe eval for the prompt-injection guard lives in [`evals/`](evals/), see its [README](evals/README.md).
@@ -92,7 +93,7 @@ npm run dev:emulator          # terminal 2 - app pointed at the emulator
 | UI | React 19 + Tailwind 4 |
 | Auth | Firebase Auth, GitHub OAuth (the sensor) + email/password |
 | DB | Firestore, realtime via `onSnapshot` |
-| Model | Claude, from a server-side route handler only |
+| Model | Claude, from a server-side route handler only. Auto-publish paths pin one model; Ask-Pulse's generative answer routes per turn (cheap Haiku 4.5 default, Opus 4.8 on hard asks) through an embedded `@conduit/client` |
 | Deploy | Vercel |
 
 ```
@@ -118,6 +119,12 @@ lib/
   sense.ts         Pure sensing logic: branch→title, dedupe, status inference, evidence
                    receipts, the standing-ask ladder, narration cache key, checkNarrative.
   auth-context.tsx Sign-in, and the member doc. handle is the GitHub login or null.
+  ask-agent.ts     Ask-Pulse's GENERATIVE answer path: a bounded @conduit/agent loop with
+                   read-only board tools + runtime skills; every answer still passes checkNarrative.
+  agent-plan.ts    Ask-Pulse's ACTION path: deterministic re-resolution (validatePlan), the
+                   injection backstop for anything that touches the board.
+  conduit/         Vendored @conduit/* : embedded client (routing.ts picks the per-turn model),
+                   env-gated usage reporter, the read-only MCP tools, and the (dormant) rag rerank.
 firestore.rules    The product's ethical promises, enforced.
 ```
 
@@ -153,7 +160,7 @@ firestore.rules    The product's ethical promises, enforced.
 ```bash
 npm run typecheck
 npm run lint
-npm run test:unit          # 647 tests - pure logic, no network
+npm run test:unit          # 681 tests - pure logic, no network
 npm run test:rules         # 148 tests - security rules against the emulator
 npm run test:integration   # 55 tests - real lib/data against the emulator
 npm run test:e2e           # 52 tests - Playwright, B1–B10 + spec §4, on the emulator
@@ -161,7 +168,7 @@ npm run test:e2e:smoke     # against the deployed URL
 npm run gate               # all of it
 ```
 
-That's ~900 defined cases across the four layers. (Earlier drafts of this section quoted
+That's ~934 defined cases across the four layers. (Earlier drafts of this section quoted
 108 / 92 / 40; that was stale and undercounted — see `docs/TECHNICAL_NOTES.md`.)
 
 **The rules tests are the highest-value tests here.** The rules encode the product's ethical
@@ -192,6 +199,10 @@ are not product seed data.** The cohort's activity in production is real, which 
   connect their own account. Anyone can remove themselves at `/opt-out` without signing up.
   Non-commercial, built for this cohort only.
 - Feed caps at 50 events; no pagination.
+- **Semantic board search is present and tested, but dormant.** The `search_board` tool and the
+  cosine rerank (`lib/semantic-retrieval.ts`) ship with tests, but no embedding provider is wired at
+  the ask-pulse route, so live search degrades to substring matching until a real embedder is injected.
+  It is not claimed as live.
 - Layers 2 and 3 are designed and surfaced, **not automated**.
 - Out of scope: comments, notifications, attachments, search, dark mode, presence, webhooks.
 
