@@ -10,6 +10,8 @@ import {
   type AskTier,
 } from './conduit/routing';
 import { checkNarrative } from './sense';
+import { semanticRerank, type RerankItem } from './semantic-retrieval';
+import type { EmbedFn } from './conduit/rag';
 import type { BoardContext } from './agent';
 
 /**
@@ -58,8 +60,34 @@ export type AskAgentResult = {
 /* ── Read-only board tools ─────────────────────────────────────────────────── */
 
 /** None of these mutate anything; the loop is invoked read-only (allowSideEffects unset). */
-function boardTools(ctx: BoardContext, today: string): Tool[] {
+function boardTools(ctx: BoardContext, today: string, embed?: EmbedFn): Tool[] {
   const mine = ctx.tasks.filter((t) => t.mine);
+
+  /** Every rankable board item the user owns: their tasks and their projects, as { id, text }. The
+   *  text is what the semantic rerank embeds, so it carries the human-meaningful fields. */
+  const rerankItems: RerankItem[] = [
+    ...mine.map((t) => ({
+      id: `task:${t.id}`,
+      text: [t.title, t.project, t.status].filter(Boolean).join(' / '),
+    })),
+    ...ctx.projects.map((p) => ({ id: `project:${p.id}`, text: `project: ${p.name}` })),
+  ];
+
+  /** Resolve a reranked hit id back to a compact, groundable row for the model. */
+  const rowForId = (id: string): Record<string, unknown> | null => {
+    if (id.startsWith('task:')) {
+      const t = mine.find((x) => `task:${x.id}` === id);
+      return t
+        ? { kind: 'task', title: t.title, status: t.status, project: t.project ?? null, dueDate: t.dueDate ?? null }
+        : null;
+    }
+    if (id.startsWith('project:')) {
+      const p = ctx.projects.find((x) => `project:${x.id}` === id);
+      return p ? { kind: 'project', name: p.name } : null;
+    }
+    return null;
+  };
+
   return [
     {
       name: 'list_tasks',
@@ -104,6 +132,39 @@ function boardTools(ctx: BoardContext, today: string): Tool[] {
         return mine
           .filter((t) => t.title.toLowerCase().includes(q))
           .map((t) => ({ title: t.title, status: t.status, dueDate: t.dueDate ?? null }));
+      },
+    },
+    {
+      name: 'search_board',
+      description:
+        "Search the user's own board (their tasks and projects) by MEANING, not just exact " +
+        'keywords, and return the most relevant items. Use this when the user describes a problem ' +
+        'in their own words that may not match a title verbatim. Returns an empty list when nothing ' +
+        'on the board is relevant: in that case say you did not find a matching item, do not invent one.',
+      jsonSchema: {
+        type: 'object',
+        properties: { query: { type: 'string', minLength: 1, maxLength: 200 } },
+        required: ['query'],
+        additionalProperties: false,
+      },
+      async handler(args: { query: string }) {
+        // Semantic rerank over the already-retrieved board items. The embed function is injected;
+        // with none configured it degrades to the existing exact-match (structured) retrieval.
+        const outcome = await semanticRerank({ question: args.query, items: rerankItems, embed });
+        if (outcome.kind === 'ranked') {
+          return outcome.results.map((r) => rowForId(r.id)).filter((r): r is Record<string, unknown> => r !== null);
+        }
+        if (outcome.kind === 'not_found') {
+          // Bad-retrieval failure mode: nothing cleared the relevance floor. Return nothing so the
+          // model says not-found instead of answering from a weak match.
+          return [];
+        }
+        // disabled: no embedder, so fall back to the same case-insensitive substring match find_task uses.
+        const q = args.query.toLowerCase();
+        return rerankItems
+          .filter((i) => i.text.toLowerCase().includes(q))
+          .map((i) => rowForId(i.id))
+          .filter((r): r is Record<string, unknown> => r !== null);
       },
     },
     {
@@ -252,6 +313,12 @@ export type RunAskAgentInput = {
   /** Step cap for the bounded loop. */
   maxSteps?: number;
   maxTokens?: number;
+  /**
+   * Optional embedder for the semantic rerank (the `search_board` tool). Injected so it is testable
+   * with a mock and so the path is a strict enhancement: with none, `search_board` degrades to the
+   * existing exact-match structured retrieval. No embedding provider is wired by default.
+   */
+  embed?: EmbedFn;
 };
 
 /**
@@ -265,7 +332,7 @@ export async function runAskAgent(input: RunAskAgentInput): Promise<AskAgentResu
   const maxTokens = input.maxTokens ?? 512;
   const today = new Date().toISOString().slice(0, 10);
 
-  const tools = boardTools(ctx, today);
+  const tools = boardTools(ctx, today, input.embed);
   const client = createPulseConduitClient(anthropic);
 
   // One bounded loop pass. `forceReasoning` pins every turn to the reasoning tier (used for the
