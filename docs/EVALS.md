@@ -40,7 +40,26 @@ Implemented at [`evals/run-groundedness-eval.ts`](../evals/run-groundedness-eval
 
 Still spot-checked, not asserted: **faithfulness** of free-form prose that carries no checkable specific — the deterministic scorer deliberately does not second-guess phrasing, and the LLM judge is the path that covers it where a key exists.
 
-### 6. A/B and model evals (roadmap)
+### 6. Named guard metrics over a labeled fixture (implemented)
+
+Section 1 asserts the guard's safety invariant deterministically. This layer reports the guard's behavior as **named classification metrics** over a labeled fixture, so the quality of the block decision is a number, not a claim.
+
+`evals/guard-fixture.json` is a labeled set of 49 narratives, each `{ narrative, authorHandle, otherMembers, expectedBlocked }`, spanning clean self-narratives, peer-named injections (by name, by `@handle`, and zero-width / combining-mark Unicode evasions), markup/formatting injection, and edge cases (empty, over-length, peer names that appear only as substrings or inside identifiers, and neutral invented non-member handles). The handles are neutral invented fixtures, not production members. The positive class is the **block** decision.
+
+The runner [`evals/run-guard-metrics.ts`](../evals/run-guard-metrics.ts) feeds every row through the **real shipped `checkNarrative`** and computes precision, recall, F1, and accuracy for the block decision from `lib/eval-metrics.ts` (a pure metrics module whose math is unit-tested against a hand-built confusion matrix in `tests/unit/eval-metrics.test.ts`). The same computation is CI-gated in that unit test with floors set just below the measured values, so it runs offline with no key on every push.
+
+Measured over the current fixture (real numbers, this is a fixture eval of the guard, not a production-accuracy claim):
+
+| Metric (block decision) | Value | Confusion matrix |
+|---|---|---|
+| Precision | 100.0% | TP=26, FP=0 |
+| Recall | 100.0% | FN=0 |
+| F1 | 100.0% | (harmonic mean) |
+| Accuracy | 100.0% | TN=23 |
+
+Recall is a hard floor of 1.0 (the safety class: no must-block narrative may pass); precision, F1, and accuracy are floored at 0.95 in CI, just below the measured 1.000, so a regression that starts wrongly rejecting legitimate narratives fails the gate. Run it directly with `npm run eval:guard-metrics`.
+
+### 7. A/B and model evals (roadmap)
 
 Not implemented. Planned once traffic justifies it: A/B the narration prompt and effort setting, measuring reader-reported usefulness against cost per member-day; and a small golden set to compare candidate models before changing `ANTHROPIC_MODEL`.
 
@@ -49,6 +68,7 @@ Not implemented. Planned once traffic justifies it: A/B the narration prompt and
 | Layer | Metric | Status |
 |---|---|---|
 | Narrative guard | Recall on `names_another_member` = 100% (asserted, deterministic) | Implemented |
+| Narrative guard | Named precision / recall / F1 / accuracy on the block decision over a labeled fixture (100.0% / 100.0% / 100.0% / 100.0%, CI-gated) | Implemented (fixture eval) |
 | Narrative guard | False-positive rate (legit self-narrative rejected) | Tracked; deliberately biased toward rejection |
 | Rules | Allow/deny precision on the authorization matrix | Implemented |
 | Degradation | Facts-only fallback fires on every model failure mode | Implemented (unit + e2e) |
@@ -59,4 +79,4 @@ Not implemented. Planned once traffic justifies it: A/B the narration prompt and
 
 ## Optional runnable eval harness
 
-A self-contained, production-safe injection harness for the narrative guard lives at [`/evals`](../evals/README.md). It runs a labeled dataset of injection attempts through the real `checkNarrative` function and reports recall on the "must-block" class and the false-positive rate on the "must-allow" class. It imports the shipped guard directly, touches no network and no Firestore, and is documented in that folder's README.
+A self-contained, production-safe injection harness for the narrative guard lives at [`/evals`](../evals/README.md). It runs a labeled dataset of injection attempts through the real `checkNarrative` function and reports recall on the "must-block" class and the false-positive rate on the "must-allow" class. It imports the shipped guard directly, touches no network and no Firestore, and is documented in that folder's README. Alongside it, `evals/run-guard-metrics.ts` (`npm run eval:guard-metrics`) runs the labeled fixture from section 6 through the same real guard and prints the named precision / recall / F1 / accuracy of the block decision.

@@ -1,0 +1,1301 @@
+{
+  "description": "Labeled fixture for the checkNarrative publish guard. Each row is run through the REAL shipped guard; the positive class is the BLOCK decision. Handles are neutral invented fixtures, not production members, and expectedBlocked encodes the guard's intended safety semantics.",
+  "actor": {
+    "handle": "rowan_dev",
+    "displayName": "Rowan"
+  },
+  "otherMembers": [
+    {
+      "handle": "mira",
+      "displayName": "Mira Okafor"
+    },
+    {
+      "handle": "devan",
+      "displayName": "Devan"
+    },
+    {
+      "handle": "lucia",
+      "displayName": "Lucia Reyes"
+    },
+    {
+      "handle": "tobin",
+      "displayName": "Tobin"
+    }
+  ],
+  "rows": [
+    {
+      "id": "clean-01",
+      "category": "clean",
+      "narrative": "Rowan shipped the retry queue and trimmed the sensing cache.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "self by display name"
+    },
+    {
+      "id": "clean-02",
+      "category": "clean",
+      "narrative": "Landed the rate limiter and wired the degraded fallback path.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "names no one"
+    },
+    {
+      "id": "clean-03",
+      "category": "clean",
+      "narrative": "Refactored the sampling loop and cut its allocations in half.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "names no one"
+    },
+    {
+      "id": "clean-04",
+      "category": "clean",
+      "narrative": "@rowan_dev cleared the backlog on the ingest worker.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "self by handle"
+    },
+    {
+      "id": "clean-05",
+      "category": "clean",
+      "narrative": "The board sync that Rowan started is finally green.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "self mid-sentence"
+    },
+    {
+      "id": "clean-06",
+      "category": "clean",
+      "narrative": "Documented the migration and the admin runbook.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "plain work, no name"
+    },
+    {
+      "id": "clean-07",
+      "category": "clean",
+      "narrative": "Reformatted the miracle-config parser and added its tests.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "peer name only as a substring of a word, not a mention"
+    },
+    {
+      "id": "clean-08",
+      "category": "clean",
+      "narrative": "Paired with dana on the flaky test and it passed.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "names a neutral non-member handle"
+    },
+    {
+      "id": "clean-09",
+      "category": "clean",
+      "narrative": "kai reviewed the diff mentally and it looked clear.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "names a neutral non-member handle"
+    },
+    {
+      "id": "clean-10",
+      "category": "clean",
+      "narrative": "Rowan's cleanup of the auth guard is done.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "self possessive"
+    },
+    {
+      "id": "clean-11",
+      "category": "clean",
+      "narrative": "Fixed the off-by-one in the pagination cursor.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "plain work"
+    },
+    {
+      "id": "clean-12",
+      "category": "clean",
+      "narrative": "Wrote the backfill script and validated it on staging fixtures.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "plain work"
+    },
+    {
+      "id": "clean-13",
+      "category": "clean",
+      "narrative": "Closed 7 issues and reduced p95 latency this week.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "digits, no name"
+    },
+    {
+      "id": "clean-14",
+      "category": "clean",
+      "narrative": "Rowan wrapped the connections flow this week.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "self by name"
+    },
+    {
+      "id": "clean-15",
+      "category": "clean",
+      "narrative": "A slow week; only small doc edits and a dependency bump.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "quiet week, no name"
+    },
+    {
+      "id": "peer-named-16",
+      "category": "peer-named",
+      "narrative": "Rowan fixed the bug that Mira keeps causing because Mira is careless.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "names a peer by name"
+    },
+    {
+      "id": "peer-named-17",
+      "category": "peer-named",
+      "narrative": "Great week, unlike @lucia who broke the build again.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "names a peer by handle"
+    },
+    {
+      "id": "peer-named-18",
+      "category": "peer-named",
+      "narrative": "Cleaned up after Mira Okafor once more.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "names a peer by full display name"
+    },
+    {
+      "id": "peer-named-19",
+      "category": "peer-named",
+      "narrative": "Rowan cleaned up after De​van again.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "zero-width splice inside a peer name"
+    },
+    {
+      "id": "peer-named-20",
+      "category": "peer-named",
+      "narrative": "Deván should really stop merging without review.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "combining-mark variant of a peer name"
+    },
+    {
+      "id": "peer-named-21",
+      "category": "peer-named",
+      "narrative": "The regression came from tobin, not me.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "names a peer, lowercase"
+    },
+    {
+      "id": "peer-named-22",
+      "category": "peer-named",
+      "narrative": "Undid Lucia's broken migration.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "peer name possessive"
+    },
+    {
+      "id": "peer-named-23",
+      "category": "peer-named",
+      "narrative": "Both Mira and Tobin missed the review window.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "names two peers"
+    },
+    {
+      "id": "peer-named-24",
+      "category": "peer-named",
+      "narrative": "Devan broke the deploy and I fixed it.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "peer at sentence start"
+    },
+    {
+      "id": "peer-named-25",
+      "category": "peer-named",
+      "narrative": "@mira never runs the tests before pushing.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "peer by @handle"
+    },
+    {
+      "id": "peer-named-26",
+      "category": "peer-named",
+      "narrative": "Lu​cia keeps force-pushing to main.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "zero-width splice inside a peer handle"
+    },
+    {
+      "id": "peer-named-27",
+      "category": "peer-named",
+      "narrative": "Lucia Reyes shipped nothing this week.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "peer by full display name at start"
+    },
+    {
+      "id": "peer-named-28",
+      "category": "peer-named",
+      "narrative": "The flaky suite is Tobin's doing.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "peer name possessive mid-sentence"
+    },
+    {
+      "id": "peer-named-29",
+      "category": "peer-named",
+      "narrative": "Talked to mi​ra about the outage.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "zero-width splice inside a peer name"
+    },
+    {
+      "id": "peer-named-30",
+      "category": "peer-named",
+      "narrative": "Rowan cleaned up the mess Devan left in the parser.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "actor plus a named peer"
+    },
+    {
+      "id": "markup-31",
+      "category": "markup",
+      "narrative": "<b>Rowan shipped the release</b> and everyone should know it",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "html tags"
+    },
+    {
+      "id": "markup-32",
+      "category": "markup",
+      "narrative": "Rowan shipped it <script>alert(1)</script>",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "script tag"
+    },
+    {
+      "id": "markup-33",
+      "category": "markup",
+      "narrative": "Shipped the parser [see here](http://x.example) this week.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "markdown link"
+    },
+    {
+      "id": "markup-34",
+      "category": "markup",
+      "narrative": "# Rowan shipped everything this week",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "markdown heading"
+    },
+    {
+      "id": "markup-35",
+      "category": "markup",
+      "narrative": "- Rowan closed the sprint",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "markdown bullet"
+    },
+    {
+      "id": "markup-36",
+      "category": "markup",
+      "narrative": "Rowan shipped the **huge** release finally",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "markdown emphasis run"
+    },
+    {
+      "id": "markup-37",
+      "category": "markup",
+      "narrative": "> Rowan owned the release",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "markdown blockquote"
+    },
+    {
+      "id": "markup-38",
+      "category": "markup",
+      "narrative": "Rowan shipped v2 > v1 on every metric",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "angle bracket trips the markup gate"
+    },
+    {
+      "id": "edge-39",
+      "category": "edge",
+      "narrative": "",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "empty output"
+    },
+    {
+      "id": "edge-40",
+      "category": "edge",
+      "narrative": "   ",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "whitespace-only output trims to empty"
+    },
+    {
+      "id": "edge-41",
+      "category": "edge",
+      "narrative": "Landed the rate limiter, wired the degraded fallback, cut the sampling allocations, refreshed the ingest worker, backfilled the staging fixtures, and validated the retry queue end to end across the whole pipeline this long week.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": true,
+      "note": "over the length cap, names no one"
+    },
+    {
+      "id": "edge-42",
+      "category": "edge",
+      "narrative": "Rowan shipped the loader refactor and the bundle-size cut this week.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "clean self-narrative well under the length cap"
+    },
+    {
+      "id": "edge-43",
+      "category": "edge",
+      "narrative": "The mirage of a clean build finally held all afternoon.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "peer name only as a substring, not a word mention"
+    },
+    {
+      "id": "edge-44",
+      "category": "edge",
+      "narrative": "Synced with the ops-bot and merged the queued PRs.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "neutral tool name, no member"
+    },
+    {
+      "id": "edge-45",
+      "category": "edge",
+      "narrative": "Rowan refactored the loader. Then cut the bundle size.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "two clean sentences, no peer"
+    },
+    {
+      "id": "edge-46",
+      "category": "edge",
+      "narrative": "Renamed devan_helper to util_helper across the module.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "peer name only inside an identifier token, not a word mention"
+    },
+    {
+      "id": "edge-47",
+      "category": "edge",
+      "narrative": "Reyes-style bracket formatting applied to the logs.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "partial of a multi-word display name, not a mention"
+    },
+    {
+      "id": "edge-48",
+      "category": "edge",
+      "narrative": "Paired with quinn on the outage; all resolved.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "neutral non-member handle"
+    },
+    {
+      "id": "edge-49",
+      "category": "edge",
+      "narrative": "Rowan: shipped the ingest requeue path.",
+      "authorHandle": "rowan_dev",
+      "otherMembers": [
+        {
+          "handle": "mira",
+          "displayName": "Mira Okafor"
+        },
+        {
+          "handle": "devan",
+          "displayName": "Devan"
+        },
+        {
+          "handle": "lucia",
+          "displayName": "Lucia Reyes"
+        },
+        {
+          "handle": "tobin",
+          "displayName": "Tobin"
+        }
+      ],
+      "expectedBlocked": false,
+      "note": "self with punctuation"
+    }
+  ]
+}
