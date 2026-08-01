@@ -3,7 +3,7 @@
 > **Jira, if it filled itself in: a project board that reads your commits and PRs and writes its own status.**
 
 [![CI](https://github.com/nikjain15/pulse/actions/workflows/ci.yml/badge.svg)](https://github.com/nikjain15/pulse/actions/workflows/ci.yml)
-[![tests](https://img.shields.io/badge/tests-965%20passing-brightgreen.svg)](#tests)
+[![tests](https://img.shields.io/badge/tests-934%20passing%20locally-brightgreen.svg)](#tests)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **Live: [pulsecohort.vercel.app](https://pulsecohort.vercel.app)** · Source: this repo · Piloted with the cohort, a 65-person developer program.
@@ -203,16 +203,21 @@ firestore.rules    The product's ethical promises, enforced.
 ```bash
 npm run typecheck
 npm run lint
-npm run test:unit          # 696 tests, pure logic, no network
+npm run test:unit          # 681 tests, pure logic, no network
 npm run test:rules         # 148 tests, security rules against the emulator
 npm run test:integration   # 55 tests, real lib/data against the emulator
-npm run test:e2e           # 66 tests, Playwright, B1–B10 + spec §4, on the emulator
-npm run test:e2e:smoke     # against the deployed URL
-npm run gate               # all of it
+npm run test:e2e           # 47 tests, Playwright, B1–B10 + spec §4, on the emulator
+npm run test:e2e:smoke     # 3 tests, read-only, against the deployed URL
+npm run gate               # typecheck + lint + unit + rules + integration + e2e smoke
 ```
 
-That's 965 defined cases across the four layers, the number in the test badge above, confirmed by
-running each suite.
+That's 934 defined `it(` / `test(` cases across the four layers, the number in the test badge above.
+Table-driven specs expand further at runtime, so the executed count is higher.
+
+**The badge is not a CI guarantee, and shouldn't be read as one.** `.github/workflows/ci.yml` runs
+typecheck, lint, `test:unit`, and the production build, so CI covers 681 of the 934. The rules,
+integration, and e2e suites need Java and the Firebase emulator, so they run locally through
+`npm run gate` before a deploy. Wiring the emulator into CI is the open next step.
 
 **The rules tests are the highest-value tests here.** The rules encode the product's ethical
 promises, and a promise the rules don't enforce is marketing. Every attack is asserted denied: nobody

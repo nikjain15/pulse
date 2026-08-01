@@ -51,16 +51,23 @@ Claude Desktop config:
 }
 ```
 
-## Hosted (HTTP/SSE) shape
+## Roadmap: hosted (HTTP/SSE) transport, not implemented
 
-For a hosted deployment the same registry is served over SSE by `@conduit/mcp`'s
-`createSseHandler`, mounted behind Pulse's auth so the bound handle comes from the session rather
-than an env var. The canonical URL shape is:
+**Status: design only.** stdio is the one transport you can run today. There is no `app/api/mcp/`
+route in this repo, so the URLs below serve nothing yet; they document the intended shape so the
+build is a mounting job rather than a redesign.
+
+The building block already exists: `@conduit/mcp` exports `createSseHandler`
+(`conduit/packages/mcp/src/http.ts`), and the tool registry is transport-agnostic. The planned
+deployment serves that same registry over SSE, mounted behind Pulse's auth so the bound handle comes
+from the session rather than an env var. The intended URL shape:
 
 ```
-GET  https://<pulse-host>/api/mcp/sse       # opens the SSE stream
-POST https://<pulse-host>/api/mcp/messages  # posts client -> server messages
+GET  https://<pulse-host>/api/mcp/sse       # planned: opens the SSE stream
+POST https://<pulse-host>/api/mcp/messages  # planned: posts client -> server messages
 ```
 
-The tool set and the read-only, auth-honoring contract are identical across stdio and hosted
-transports; only the transport and the source of the verified identity differ.
+The design goal is that the tool set and the read-only, auth-honoring contract stay identical across
+stdio and hosted; only the transport and the source of the verified identity differ. Next action:
+add the `app/api/mcp/` route pair wired to `createSseHandler`, with the handle resolved from the
+verified session.

@@ -14,7 +14,7 @@ Every claim below is tied to a file in this repo. Where a capability is not pres
 | 6 | RAG & context | 3 / 5 | Retrieval-then-generate over commit/PR evidence; cross-app shared memory bus keyed by identity (`lib/shared-context.ts`, `rememberShared`/`readSharedMemory`). Failure modes handled (facts-only). A cosine vector rerank (`lib/semantic-retrieval.ts`, vendored `@conduit/rag`) and a `search_board` tool exist and are tested. | Semantic retrieval is **dormant in production**: no embedding provider is wired at the ask-pulse route, so `search_board` degrades to substring matching until a real embedder is injected. Live retrieval is not yet semantic. |
 | 7 | Evals & grounding | 4 / 5 | Deterministic guard tests, generated adversarial matrices (`tests/unit/gen-*.ts`), rules evals (`tests/rules/*`), emulator integration tests, Playwright e2e including `degraded.spec.ts`. ~865 test cases defined. **LLM-judge groundedness eval now implemented** (`evals/run-groundedness-eval.ts`, EVALS §5). | No A/B or model-eval golden set yet (see EVALS roadmap). |
 | 8 | Code quality | 5 / 5 | Strongly typed; discriminated-union results (`NarrativeCheck`, `NarrationResult`); dense rationale comments explaining *why*; clear module boundaries; `typecheck`+`lint`+tests wired into a `gate` script. |  |
-| 9 | Scalability & cost | 4 / 5 | Explicit, code-level cost model (`lib/sense.ts`, `lib/types.ts`, `TESTING.md`): ~\$524 uncached vs ~\$27 cached over the pilot against ~\$11 credit; identity/SHA-range cache; single-slot→set cache fix to stop re-billing. **Live cost counter now implemented** (`lib/usage.ts` prices each call; `lib/usage-admin.ts` persists a running total; `GET /api/usage` and `/settings` surface calls, tokens, cache-hit rate, and USD). | Poll, not webhook; multi-model cascade still out of scope by design. |
+| 9 | Scalability & cost | 4 / 5 | Explicit, code-level cost model (`lib/sense.ts`, `lib/types.ts`, `TESTING.md`): ~\$524 uncached vs ~\$27 cached over the pilot against ~\$11 credit; identity/SHA-range cache; single-slot→set cache fix to stop re-billing. **Live cost counter now implemented** (`lib/usage.ts` prices each call; `lib/usage-admin.ts` persists a running total; `GET /api/usage` and `/settings` surface calls, tokens, cache-hit rate, and USD). | Poll, not webhook; the Haiku/Opus cascade covers the Ask-Pulse path only (`lib/conduit/routing.ts`), narration stays pinned to one model by design. |
 | 10 | Guardrails & safety | 5 / 5 | `checkNarrative` (auto-publish backstop, `names_another_member`), `checkRecipeBody`, Unicode folding, markup rejection, refusal handling, facts-only degradation, server-only writes, tested `firestore.rules`, capability-gated tools. | Cross-script homoglyph fold is a documented residual. |
 | 11 | Product layer | 4 / 5 | See `docs/PRD.md`: personas, JTBD, metrics, explicit tradeoffs, Now/Next/Later. Three-layer ladder matches code maturity honestly. | Bank/Broker layers still roadmap; adoption metrics from the pilot not instrumented in-repo. |
 | 12 | FDE journey | 4 / 5 | See `docs/FDE_JOURNEY.md`: secrets via env, graceful degradation without a key, cross-app contract + drift guard, shadow/parallel rollout pattern, right-to-be-forgotten (`forgetShared`). | No customer-facing observability dashboard yet; single-tenant assumptions. |
@@ -52,14 +52,17 @@ The ~10× headline is real as a **modeled** before/after of the caching design (
 
 ## Test count (verified)
 
-Counting defined `it(` / `test(` cases across the vitest projects and Playwright specs:
+Counting defined `it(` / `test(` cases across the vitest projects and Playwright specs, comments excluded:
 
-| Project | Cases |
-|---|---|
-| unit | 681 |
-| rules | 148 |
-| integration | 55 |
-| e2e (Playwright) | 50 |
-| **Total** | **~934** |
+| Suite | Command | Cases | Run by CI? |
+|---|---|---|---|
+| unit | `npm run test:unit` | 681 | yes |
+| rules | `npm run test:rules` | 148 | no, local `npm run gate` (needs the emulator) |
+| integration | `npm run test:integration` | 55 | no, local `npm run gate` (needs the emulator) |
+| e2e, Playwright `full` | `npm run test:e2e` | 47 | no, local `npm run gate` runs the smoke subset only |
+| e2e, Playwright `smoke` | `npm run test:e2e:smoke` | 3 | no, run against the deployed URL |
+| **Total** | | **934** | |
 
-Several `gen-*.test.ts` files are table-driven and generate additional cases at runtime, so the executed count is at least this. The unit count grew with the Conduit answer path (routing, the embedded client, semantic rerank, the named guard-metrics module). The previously cited "240 tests" substantially undercounts the suite.
+**What CI actually guarantees.** `.github/workflows/ci.yml` runs typecheck, lint, `test:unit`, and the production build. That is 681 of the 934 cases. The emulator-backed suites (rules, integration, e2e) need Java and the Firebase emulator, so they run locally via `npm run gate`, which is typecheck + lint + unit + rules + integration + e2e smoke. Read the badge as "934 cases defined and passing locally", not as a per-commit CI guarantee.
+
+Several `gen-*.test.ts` files and `tests/e2e/responsive.spec.ts` are table-driven and expand at runtime, so the executed count is higher than the declared count above. The unit count grew with the Conduit answer path (routing, the embedded client, semantic rerank, the named guard-metrics module). The previously cited "240 tests" substantially undercounts the suite.
