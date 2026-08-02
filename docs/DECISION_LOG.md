@@ -27,11 +27,68 @@ attempt fixes, because a fix invented in the same session as the critique is unr
 
 | What | Why | Pillar affected |
 |---|---|---|
-| Dependency and supply-chain review | Out of scope for all three reviews; no `npm audit`, no lockfile check, no review of the vendored `conduit/` provenance or the CI workflow's secret handling | Security |
+| Dependency and supply-chain review | Partly closed on 2026-08-02, see Supply chain below. Still out of scope: the vendored `conduit/` provenance and the CI workflow's secret and permission handling | Security |
 | Testing against the live deployed app | The design review read source only; nothing was observed in a real browser, on a real screen reader, or at a real viewport | Design, accessibility |
 | The rules, integration, and e2e suites | The eval review read only the three eval harnesses; nothing here speaks to the quality of the other 934 test cases | Evals |
 | A real accessibility audit | Requires a specialist and a screen reader; the review can only report that none has been run | Design, accessibility |
 | Any legal or privacy opinion | Requires a lawyer and a data protection reviewer; none exists for this project | Privacy, legal |
+
+## Supply chain (added 2026-08-02)
+
+The three simulated reviews scoped supply chain out. GitHub then reported 16 Dependabot alerts on
+the default branch, so it was triaged properly rather than left as a written down gap.
+
+`npm audit` and the Dependabot API were cross referenced, and each finding was checked for whether
+it is reachable from code this product actually ships. That is the question that decides severity
+here, because a vulnerability in a linter is not a vulnerability in a product.
+
+**Fixed.** `npm audit fix` with no force flag, so no major versions moved. Total findings went from
+17 to 12 and high severity from 5 to 3. Closed: `brace-expansion` (high), `fast-uri` (high),
+`@hono/node-server`, `@modelcontextprotocol/sdk`, `tar`. All five reach the tree only through
+`eslint`, `firebase-tools` and other build tooling, never through a shipped path. Next was also
+moved from 16.2.10 to 16.2.12, the newest stable release.
+
+**Open, and honestly not fixable today.**
+
+| Package | Severity | Why it is still here |
+|---|---|---|
+| `next` | high | The advisory range runs to `16.3.0-preview.7` and 16.2.12 is the newest stable release, so no patched version exists yet. npm's suggested fix is a downgrade to `next@9.3.3`, seven majors back, which is not a fix. |
+| `postcss` | high | Reaches the tree through `next` and `@tailwindcss/postcss`. Same constraint, and the same downgrade suggestion. |
+| `sharp` | high | An optional dependency of `next` for image optimization. Same constraint. |
+| `firebase-admin` and its `@google-cloud/storage`, `gaxios`, `retry-request`, `teeny-request`, `uuid` chain | moderate | The offered fix is `firebase-admin@10.3.0`, a major downgrade from 14.x. |
+| `firebase-tools`, `@google-cloud/pubsub`, `@opentelemetry/core` | moderate | Development dependency only. Never shipped. |
+
+**Reachability of the three open high findings, checked against this codebase rather than assumed.**
+
+The `next` advisories cover Server Actions, middleware and proxy bypass, rewrites, cache confusion,
+and image optimization. Of those:
+
+- No Server Actions exist. `grep -rl "use server"` over `app/` and `lib/` returns nothing, which
+  rules out the Server Action SSRF, the denial of service, the unbounded Edge payload, and the
+  unauthenticated Server Function disclosure.
+- No middleware exists. There is no `middleware.ts` anywhere, which rules out the middleware and
+  proxy bypass.
+- No rewrites exist. `next.config.ts` is empty of configuration, which rules out the rewrites SSRF
+  and leaves no configured remote image hosts.
+- `next/image` is not used. The only mention in the codebase is a comment in
+  `components/TaskCard.tsx:113` explaining why it is deliberately avoided, so the image optimizer
+  is reachable only as a default endpoint with no remote hosts allowed.
+- Cache confusion is the one class not ruled out by code shape, and it is the reason this is
+  recorded as accepted risk rather than dismissed.
+
+`postcss` runs at build time, in the Tailwind pipeline, over CSS this repository controls. The
+path traversal and source map advisories need attacker controlled CSS, which does not exist here.
+
+`sharp` is only exercised through image optimization, which the previous point covers.
+
+**Accepted risk, and the condition that changes it.** Upgrade `next` the day a stable release
+lands outside the advisory range, and re run this triage. Until then the three high findings stay
+open, documented, and reachable only through the cache confusion class.
+
+**The wider gap this exposed.** CI runs typecheck, lint, unit tests and a build. It runs no
+dependency audit at all, which is why 16 alerts accumulated unnoticed. Adding `npm audit --omit=dev`
+to `.github/workflows/ci.yml`, with an allowlist for findings that have no available fix, would
+stop this recurring. That is not done yet and is the next action.
 
 ## Kill criteria (R1)
 
