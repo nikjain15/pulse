@@ -40,6 +40,26 @@ Implemented at [`evals/run-groundedness-eval.ts`](../evals/run-groundedness-eval
 
 Still spot-checked, not asserted: **faithfulness** of free-form prose that carries no checkable specific — the deterministic scorer deliberately does not second-guess phrasing, and the LLM judge is the path that covers it where a key exists.
 
+### 5a. Validating the judge itself (added 2026-08-02)
+
+Everything in section 5 above described what the judge *scores*. Nothing measured whether the judge *marks correctly*, and two things were wrong because of it.
+
+**The eval had never run.** `npm run eval:groundedness` crashed with `ERR_MODULE_NOT_FOUND` before scoring a single case: `lib/groundedness.ts` imported `./retry` without a file extension, which Node's native type stripping cannot resolve. No CI job ran any eval script, so a documented eval could fail on every invocation and the repository still looked healthy. Both are fixed: the import carries its extension, and the `check` job now runs all three offline evals, so a crashing eval fails a build instead of going unnoticed.
+
+**The judge was reported as raw agreement, which cannot be read.** One line, `agreement vs labels`, with nothing to compare it against. On a set that is half grounded, a judge answering "grounded" to everything scores 50 percent; on an 80 percent grounded set it scores 80 and looks strong. Raw agreement measures the dataset as much as the judge, and it cannot distinguish a judge that over-flags honest narratives from one that publishes inventions. Only one of those reaches readers.
+
+What exists now:
+
+- **[`evals/judge-metrics.ts`](../evals/judge-metrics.ts)** reports Cohen's kappa next to raw agreement and next to the base rate raw agreement has to beat, plus both per-class rates separately. The method is ported from Conduit's `evals/judge-metrics.ts` rather than reinvented. Conduit's own first run is the argument for it: a cheap model rejected every case, which a raw catch rate scored as a flawless 100 percent detection rate and kappa scored 0.
+- **[`evals/judge-validation-dataset.json`](../evals/judge-validation-dataset.json)**, 24 cases, class balanced 12/12 and enforced in code, so an always-grounded judge scores 50 percent agreement and kappa 0 by construction. Six cases are band `U-SCOPE`: invented work carrying no PR number and no file path, so `scoreGroundedness` is blind to them. That band is the only part of the set that measures what the LLM judge adds over a regex, and a unit test fails if it ever empties.
+- **[`evals/run-judge-validation.ts`](../evals/run-judge-validation.ts)** (`npm run eval:judge-validation`) grades the **shipped** `judgeGroundedness`, selecting the model through `ANTHROPIC_MODEL`, the only lever the shipped module exposes. Nothing is reimplemented for the test, so the number is evidence about the judge Pulse runs.
+
+**One dimension, deliberately.** Conduit grades faithfulness and relevance separately because its judge makes two separate claims. Pulse's judge returns one binary verdict, `grounded`, so there is one dimension here. Adding a second would mean measuring something Pulse does not ship.
+
+**Nothing is enforced yet, and that is the honest state.** `ENFORCED` in the runner is empty. The floor is kappa 0.6, the conventional production floor, but no keyed run has happened, so no model is claimed as validated. A model absent from `ENFORCED` is not exempt, it is **unvalidated**, and an unvalidated judge must not be described anywhere as a quality gate. Adding a model there is a claim, and it goes in the same commit as the run that clears the floor, never before.
+
+The arithmetic runs offline on every pull request via `tests/unit/judge-metrics.test.ts` (23 cases), including the two degenerate judges that raw agreement flatters.
+
 ### 6. Named guard metrics over a labeled fixture (implemented)
 
 Section 1 asserts the guard's safety invariant deterministically. This layer reports the guard's behavior as **named classification metrics** over a labeled fixture, so the quality of the block decision is a number, not a claim.
@@ -85,6 +105,7 @@ Not implemented. Planned once traffic justifies it: A/B the narration prompt and
 | Cost | Cache-hit rate; model calls/day vs budget | Modeled in code + TESTING.md; live counter is roadmap |
 | Narrative accuracy | Groundedness: checkable claims trace to evidence (deterministic, asserted); LLM judge on top | Implemented |
 | Narrative accuracy | Faithfulness of unfalsifiable prose | Spot-checked (LLM judge where a key exists) |
+| **The judge itself** | Cohen's kappa vs a 0.6 floor, reported with the base rate and both per-class rates, on a 12/12 class-balanced set | Harness implemented and CI-gated offline; **no model validated yet**, `ENFORCED` is empty until a keyed run clears the floor |
 | Prompt/model choice | A/B usefulness vs cost; golden model comparison | Roadmap |
 
 ## Optional runnable eval harness

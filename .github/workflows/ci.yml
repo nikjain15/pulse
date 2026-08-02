@@ -42,6 +42,25 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
+      # The offline evals, run because they were not run.
+      #
+      # `npm run eval:groundedness` was broken for an unknown length of time. It
+      # crashed on ERR_MODULE_NOT_FOUND before scoring a single case, because
+      # lib/groundedness.ts imported './retry' without an extension and Node's
+      # native type stripping cannot resolve that. Nothing caught it: no CI job
+      # ran any eval script, so a documented eval could crash on every invocation
+      # and still look healthy from the repository.
+      #
+      # These need no API key. The groundedness eval scores the deterministic
+      # scorer and exits non-zero on a single misclassification; the judge
+      # validation checks its dataset is usable and skips the model call. A skip
+      # is printed as a skip, never as a pass.
+      - name: Evals (offline, no API key)
+        run: |
+          npm run eval:guard
+          npm run eval:groundedness
+          npm run eval:judge-validation
+
       # Dummy public Firebase values let the static prerender succeed without any real secret.
       - name: Build
         env:

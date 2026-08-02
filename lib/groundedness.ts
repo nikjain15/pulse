@@ -1,6 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Evidence } from './types';
-import { logAttempts, withRetry } from './retry';
+// Explicit .ts extension, and it is load-bearing rather than stylistic. The eval
+// harnesses run this module directly under Node's native type stripping, which
+// does not resolve extensionless specifiers. Written as './retry' this import
+// threw ERR_MODULE_NOT_FOUND and took `npm run eval:groundedness` down with it,
+// unnoticed, because no CI job ran that script. tsconfig sets
+// allowImportingTsExtensions, and the other eval entry points already import
+// this way.
+import { logAttempts, withRetry } from './retry.ts';
 
 /**
  * Groundedness scoring for published narratives. EVALS.md §5.
