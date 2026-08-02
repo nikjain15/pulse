@@ -13,50 +13,13 @@
     "reason. There is no way to let one of these rot quietly, which is the specific failure",
     "this file is designed around.",
     "",
-    "Not listed here, and deliberately: `next` itself. Its own advisories cleared when the",
-    "repo moved to 16.2.12. What is left below reaches the tree THROUGH next, as bundled",
-    "transitive dependencies with no independently upgradable version."
+    "Empty as of 2026-08-02, and empty is the intended resting state. The four entries that",
+    "used to live here, postcss three times and sharp once, all reached the tree through",
+    "next as pinned transitive dependencies, and the argument for keeping them was that no",
+    "upgradable version existed. That stopped being true. An `overrides` block in",
+    "package.json now lifts both past their advisory ranges, which is a fix rather than an",
+    "argument, so the entries are deleted rather than re-dated. An allowlist earns its keep",
+    "by being hard to add to and easy to empty."
   ],
-  "entries": [
-    {
-      "ghsa": "GHSA-qx2v-qp2m-jg93",
-      "package": "postcss",
-      "severity": "high",
-      "reason": "XSS via an unescaped </style> in PostCSS stringify output. postcss reaches this tree only through next and @tailwindcss/postcss, where it runs at build time over CSS this repository authors. The advisory needs attacker-controlled CSS; no user input reaches the Tailwind pipeline. No upgradable version exists that is not a next downgrade.",
-      "link": "https://github.com/advisories/GHSA-qx2v-qp2m-jg93",
-      "expires": "2026-09-15",
-      "reviewed": "2026-08-02",
-      "notes": "docs/DECISION_LOG.md#supply-chain"
-    },
-    {
-      "ghsa": "GHSA-6g55-p6wh-862q",
-      "package": "postcss",
-      "severity": "high",
-      "reason": "Arbitrary file read via an attacker-controlled sourceMappingURL in a CSS comment. Same build-time-only reachability as the entry above: the CSS PostCSS parses is app/globals.css plus Tailwind output, all of it in this repository. No stable fix available that is not a next downgrade.",
-      "link": "https://github.com/advisories/GHSA-6g55-p6wh-862q",
-      "expires": "2026-09-15",
-      "reviewed": "2026-08-02",
-      "notes": "docs/DECISION_LOG.md#supply-chain"
-    },
-    {
-      "ghsa": "GHSA-r28c-9q8g-f849",
-      "package": "postcss",
-      "severity": "high",
-      "reason": "Path traversal in previous-source-map auto-loading, disclosing arbitrary .map files. Requires attacker-controlled CSS or map references at build time; the build runs on CI over repository-controlled sources only. Same absent upstream fix as the other two postcss entries.",
-      "link": "https://github.com/advisories/GHSA-r28c-9q8g-f849",
-      "expires": "2026-09-15",
-      "reviewed": "2026-08-02",
-      "notes": "docs/DECISION_LOG.md#supply-chain"
-    },
-    {
-      "ghsa": "GHSA-f88m-g3jw-g9cj",
-      "package": "sharp",
-      "severity": "high",
-      "reason": "Inherited libvips CVEs (CVE-2026-33327/33328/35590/35591). sharp is an optional dependency of next used only by the image optimizer. next/image is not used anywhere in this app (components/TaskCard.tsx documents the deliberate avoidance) and next.config.ts configures no remote image hosts, so the decoder is reachable only through the default optimizer endpoint with no allowed remote sources. No stable next release ships a patched sharp yet.",
-      "link": "https://github.com/advisories/GHSA-f88m-g3jw-g9cj",
-      "expires": "2026-09-15",
-      "reviewed": "2026-08-02",
-      "notes": "docs/DECISION_LOG.md#supply-chain"
-    }
-  ]
+  "entries": []
 }

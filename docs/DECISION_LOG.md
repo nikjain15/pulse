@@ -55,6 +55,11 @@ moved from 16.2.10 to 16.2.12, the newest stable release.
 
 **Open, and honestly not fixable today.**
 
+> Superseded on 2026-08-02 by "The not-fixable findings were fixable" below. The table and
+> the reachability analysis that follow are kept as written, because the reasoning is what
+> makes the correction legible. Three of the five rows are now closed outright. Read the
+> correction before relying on anything in this subsection.
+
 | Package | Severity | Why it is still here |
 |---|---|---|
 | `next` | high | The advisory range runs to `16.3.0-preview.7` and 16.2.12 is the newest stable release, so no patched version exists yet. npm's suggested fix is a downgrade to `next@9.3.3`, seven majors back, which is not a fix. |
@@ -121,6 +126,60 @@ rather than the marketplace action, because a job that exists to reduce supply-c
 not add an unpinned dependency to do it. It runs over full history (`--log-opts=--all`), since a
 secret committed and later "removed" is still leaked. Clean on the current tree. And the workflow now
 declares `permissions: contents: read`, which was one of the items this log listed as out of scope.
+
+### The not-fixable findings were fixable (correction, 2026-08-02)
+
+Everything above rests on one claim: that `postcss` and `sharp` reach this tree only through `next`,
+and that no version of either could be taken without downgrading `next`. The first half is true. The
+second half was wrong, and it was wrong at the time it was written, not just overtaken by events.
+
+`next@16.2.12` declares `postcss` as an exact pin of `8.4.31` and `sharp` as an optional `^0.34.5`.
+Neither range accepts the patched release, which is what `npm audit fix` reports and what this log
+repeated. But npm's `overrides` exists precisely to force a transitive dependency past a parent's
+range, and it was never tried. `package.json` now carries:
+
+```json
+"overrides": { "next": { "postcss": "^8.5.25", "sharp": "^0.35.0" } }
+```
+
+Resolved versions moved from `postcss 8.4.31` to `8.5.25` and `sharp 0.34.5` to `0.35.3`, both
+outside every advisory range. `npm audit --omit=dev` went from **3 high and 6 moderate to 0 high and
+6 moderate**. Verified on this tree with `npm run typecheck`, `npm run lint` and `npm run build`, all
+green, plus the unit suite. The build is the check that matters here, because `postcss` runs inside
+the Tailwind pipeline at build time and a broken override would surface there rather than in tests.
+
+All four allowlist entries are therefore deleted rather than re-dated, and
+`scripts/audit/allowlist.json` is now empty. The gate had already been saying so: it prints a
+`no longer reported` note for an entry upstream has fixed, and it printed one for all four before
+they were removed. The note worked. Nobody read it for the days it took to notice.
+
+What this cost: three high advisories sat documented as unavoidable, with a careful reachability
+argument attached, when a four-line change closed them. A good reachability argument is not a
+substitute for checking whether a fix exists, and the more convincing the argument reads the less
+likely anyone is to re-check. That is the failure mode worth naming, because the allowlist mechanism
+is designed to defend against exactly it and still did not.
+
+**What remains, and it is not gated.** Six moderate advisories, all one chain:
+`firebase-admin 14.2.0` to `@google-cloud/storage 7.21.0` to `teeny-request` and `gaxios`, ending at
+`uuid 9.0.1`. Both are already the newest published versions, so there is nothing to upgrade to; the
+only fix npm offers is `firebase-admin@10.3.0`, four majors back. The advisory,
+[GHSA-w5hq-g745-h8pq](https://github.com/advisories/GHSA-w5hq-g745-h8pq), is a missing buffer bounds
+check in `uuid` **v3, v5 and v6, and only when a `buf` argument is supplied**.
+
+That is falsifiable rather than asserted. Every `uuid` call site in the installed tree:
+
+```
+find node_modules -name '*.js' -not -path '*/node_modules/uuid/*' \
+  | xargs grep -hoE "uuid[_0-9a-zA-Z]*\.(v[0-9]+)" | sort | uniq -c
+#   7 uuid.v1     (universal-analytics, a firebase-tools dev dependency)
+#  15 uuid.v4
+#   1 uuid_1.v4   (gaxios, multipart boundary)
+```
+
+No `v3`, `v5` or `v6` call anywhere, in prod or dev, and no `buf` argument to pass. If that grep ever
+returns a `v3`, `v5` or `v6` line, this argument is dead and the chain needs re-triage. Moderate
+findings do not gate merges here by policy, so no allowlist entry is created; this paragraph is the
+record.
 
 ## The high-value suites now run in CI (added 2026-08-02, B2)
 
