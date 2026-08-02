@@ -44,7 +44,7 @@ Still spot-checked, not asserted: **faithfulness** of free-form prose that carri
 
 Section 1 asserts the guard's safety invariant deterministically. This layer reports the guard's behavior as **named classification metrics** over a labeled fixture, so the quality of the block decision is a number, not a claim.
 
-`evals/guard-fixture.json` is a labeled set of 49 narratives, each `{ narrative, authorHandle, otherMembers, expectedBlocked }`, spanning clean self-narratives, peer-named injections (by name, by `@handle`, and zero-width / combining-mark Unicode evasions), markup/formatting injection, and edge cases (empty, over-length, peer names that appear only as substrings or inside identifiers, and neutral invented non-member handles). The handles are neutral invented fixtures, not production members. The positive class is the **block** decision.
+`evals/guard-fixture.json` is a labeled set of 76 narratives, each `{ narrative, authorHandle, otherMembers, expectedBlocked }`, spanning clean self-narratives, peer-named injections (by name, by `@handle`, and zero-width / combining-mark Unicode evasions), markup/formatting injection, and edge cases (empty, over-length, peer names that appear only as substrings or inside identifiers, and neutral invented non-member handles). The handles are neutral invented fixtures, not production members. The positive class is the **block** decision.
 
 The runner [`evals/run-guard-metrics.ts`](../evals/run-guard-metrics.ts) feeds every row through the **real shipped `checkNarrative`** and computes precision, recall, F1, and accuracy for the block decision from `lib/eval-metrics.ts` (a pure metrics module whose math is unit-tested against a hand-built confusion matrix in `tests/unit/eval-metrics.test.ts`). The same computation is CI-gated in that unit test with floors set just below the measured values, so it runs offline with no key on every push.
 
@@ -52,14 +52,18 @@ Measured over the current fixture (real numbers, this is a fixture eval of the g
 
 | Metric (block decision) | Value | Confusion matrix |
 |---|---|---|
-| Precision | 100.0% | TP=26, FP=0 |
+| Precision | 100.0% | TP=41, FP=0 |
 | Recall | 100.0% | FN=0 |
 | F1 | 100.0% | (harmonic mean) |
-| Accuracy | 100.0% | TN=23 |
+| Accuracy | 100.0% | TN=35 |
 
 Recall is a hard floor of 1.0 (the safety class: no must-block narrative may pass); precision, F1, and accuracy are floored at 0.95 in CI, just below the measured 1.000, so a regression that starts wrongly rejecting legitimate narratives fails the gate. Run it directly with `npm run eval:guard-metrics`.
 
-**Read the 100% honestly.** These are real numbers, but they are the guard's score on a fixture built for the cases the guard is designed to catch, not a production-accuracy claim. In particular, the fixture does **not** yet include the guard's one documented blind spot: cross-script homoglyphs (for example a Cyrillic character that renders like a Latin one) are not folded by `foldForMention`, so a peer name spelled with homoglyphs is a residual the guard does not catch and the fixture does not exercise. The 100% therefore says the guard handles the evasions in the fixture (name, `@handle`, zero-width, combining-mark), not that peer-naming is fully solved. Closing the homoglyph gap, and adding fixture rows for it, is tracked as follow-up.
+**Read the 100% honestly, and read its denominator.** These are real numbers, but they are the guard's score on a fixture built for the cases the guard is designed to catch, not a production-accuracy claim. 41 of 41 must-block rows has a 95% Wilson lower bound of **91.4%**, so "100% recall" is statistically compatible with a true recall in the low nineties. That is better than the 87.1% the 26-row fixture supported, and it is still a fixture written by the same person who wrote the code under test.
+
+**What the fixture now says it misses.** The guard's blind spots used to be absent from the fixture entirely, which made the 100% read wider than it was. They are now written into `guard-fixture.json` under `knownResiduals`: a cross-script homoglyph (Cyrillic `М` for Latin `M`), a soft hyphen spliced into a peer name, a name spelled with separating spaces, and a Turkish dotless `ı`. None of them is folded by `foldForMention`, and all four evade the guard today. They are deliberately **excluded from the scored rows**, because scoring them would report a recall below the 1.0 safety floor and the tempting fix would be to relabel them as allowed, which would be a lie about what the guard does. Instead `tests/unit/eval-metrics.test.ts` asserts each one still evades, so the day the fold is widened and one starts being blocked, CI goes red and says to promote it into the scored set. The 100% therefore says the guard handles the evasion classes in the scored fixture (name, `@handle`, zero-width, combining-mark, fullwidth, case, hyphen boundary), and the residual list says what it does not.
+
+**The row count is a floor now, not a ceiling.** The unit test used to assert `rows.length <= 60`, so CI failed if anyone grew the dataset that most needed growing. It now asserts a minimum of 70 rows and at least 25 in each class. Adding cases never breaks the build; removing them does.
 
 ### 6a. Semantic retrieval tests (implemented, but the feature is dormant)
 

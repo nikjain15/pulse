@@ -80,7 +80,13 @@ type Row = {
   expectedBlocked: boolean;
   note: string;
 };
-type Fixture = { actor: Member; otherMembers: Member[]; rows: Row[] };
+type Residual = { id: string; narrative: string; why: string };
+type Fixture = {
+  actor: Member;
+  otherMembers: Member[];
+  rows: Row[];
+  knownResiduals: { cases: Residual[] };
+};
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = JSON.parse(
@@ -103,13 +109,33 @@ describe('named-metric guard eval over guard-fixture.json (real checkNarrative)'
   const F1_FLOOR = 0.95;
   const ACCURACY_FLOOR = 0.95;
 
-  it('has a substantial, balanced fixture', () => {
-    expect(fixture.rows.length).toBeGreaterThanOrEqual(40);
-    expect(fixture.rows.length).toBeLessThanOrEqual(60);
+  /**
+   * This assertion used to read `expect(rows.length).toBeLessThanOrEqual(60)`, which is a
+   * guard rail bolted on backwards: it turned "somebody added test cases to the safety
+   * dataset" into a red build. The dataset that most needs growing was the one thing CI
+   * punished you for growing. The cap is now a FLOOR: shrinking the fixture is the
+   * change that needs justifying, and adding to it never breaks CI.
+   *
+   * The floor is 70, above the 76 rows here, so a handful can be removed if one turns out
+   * to be mislabelled, but the dataset cannot be quietly gutted back to a toy.
+   */
+  const MIN_ROWS = 70;
+  const MIN_PER_CLASS = 25;
+
+  it('has a substantial, balanced fixture, and can only grow', () => {
+    expect(fixture.rows.length).toBeGreaterThanOrEqual(MIN_ROWS);
     const blocked = fixture.rows.filter((r) => r.expectedBlocked).length;
     const allowed = fixture.rows.length - blocked;
-    expect(blocked).toBeGreaterThan(0);
-    expect(allowed).toBeGreaterThan(0);
+    // Both classes carry real weight. A fixture that is 95% must-block rows would report a
+    // flattering recall and say nothing about false positives, which is the failure mode
+    // that would silently turn the whole product facts-only.
+    expect(blocked).toBeGreaterThanOrEqual(MIN_PER_CLASS);
+    expect(allowed).toBeGreaterThanOrEqual(MIN_PER_CLASS);
+  });
+
+  it('has unique row ids and a note on every row', () => {
+    expect(new Set(fixture.rows.map((r) => r.id)).size).toBe(fixture.rows.length);
+    for (const row of fixture.rows) expect(row.note.trim().length).toBeGreaterThan(0);
   });
 
   it('clears the CI floors and blocks every must-block row', () => {
@@ -124,16 +150,44 @@ describe('named-metric guard eval over guard-fixture.json (real checkNarrative)'
 
   it('reproduces the exact measured confusion matrix reported in docs/EVALS.md', () => {
     // Pins the fixture so the numbers in docs cannot silently drift. Update both together.
+    // Note this is a MATRIX pin, not a size cap: adding rows changes these numbers on
+    // purpose, and updating them here alongside the doc is the intended workflow.
     const { metrics } = scoreFixture();
     expect(metrics.matrix).toEqual({
-      truePositives: 26,
+      truePositives: 41,
       falsePositives: 0,
       falseNegatives: 0,
-      trueNegatives: 23,
+      trueNegatives: 35,
     });
     expect(metrics.precision).toBe(1);
     expect(metrics.recall).toBe(1);
     expect(metrics.f1).toBe(1);
     expect(metrics.accuracy).toBe(1);
   });
+});
+
+/**
+ * The other half of an honest eval: the cases the guard is known to miss.
+ *
+ * They are kept out of the scored rows deliberately. Scoring them would report a recall
+ * below the 1.0 the safety invariant demands, and the tempting fix would be to relabel
+ * them as allowed, which would be a lie about what the guard does. So they live in
+ * `knownResiduals` and are asserted here to STILL evade, which means the day one of
+ * them starts being blocked, this test goes red and tells you to promote it.
+ */
+describe('known residuals: what the guard does not catch', () => {
+  it('names at least the confusable-character class, with a reason each', () => {
+    expect(fixture.knownResiduals.cases.length).toBeGreaterThanOrEqual(3);
+    for (const c of fixture.knownResiduals.cases) {
+      expect(c.why.trim().length).toBeGreaterThan(40);
+    }
+  });
+
+  it.each(fixture.knownResiduals.cases.map((c) => [c.id, c] as const))(
+    '%s still evades the guard (promote it into rows when this fails)',
+    (_id, residual) => {
+      const result = checkNarrative(residual.narrative, fixture.actor, fixture.otherMembers);
+      expect(result.ok).toBe(true);
+    }
+  );
 });

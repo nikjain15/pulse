@@ -48,9 +48,11 @@ Where `run-guard-eval.ts` reports safety recall as a pass/fail invariant, this h
 
 ### What it tests
 
-`guard-fixture.json` is a labeled fixture of 49 rows, each `{ narrative, authorHandle, otherMembers, expectedBlocked }`, covering clean self-narratives, peer-named injections (name, `@handle`, zero-width and combining-mark Unicode evasions), markup/formatting injection, and edge cases (empty, over-length, peer names that appear only as substrings or inside identifiers, and neutral invented non-member handles). The positive class is the **block** decision.
+`guard-fixture.json` is a labeled fixture of 76 rows, each `{ narrative, authorHandle, otherMembers, expectedBlocked }`, covering clean self-narratives, peer-named injections (name, `@handle`, zero-width and combining-mark Unicode evasions), markup/formatting injection, and edge cases (empty, over-length, peer names that appear only as substrings or inside identifiers, and neutral invented non-member handles). The positive class is the **block** decision.
 
-The runner feeds every row through the **real shipped `checkNarrative`** and computes precision, recall, F1, and accuracy from `lib/eval-metrics.ts`, whose math is unit-tested against a hand-built confusion matrix. Over the current fixture the guard scores 100.0% precision / 100.0% recall / 100.0% F1 / 100.0% accuracy (TP=26, FP=0, FN=0, TN=23). This is a fixture eval of the guard, not a production-accuracy claim; the handles are neutral invented fixtures.
+The runner feeds every row through the **real shipped `checkNarrative`** and computes precision, recall, F1, and accuracy from `lib/eval-metrics.ts`, whose math is unit-tested against a hand-built confusion matrix. Over the current fixture the guard scores 100.0% precision / 100.0% recall / 100.0% F1 / 100.0% accuracy (TP=41, FP=0, FN=0, TN=35). This is a fixture eval of the guard, not a production-accuracy claim; the handles are neutral invented fixtures. 41 of 41 must-block rows is a 95% Wilson lower bound of 91.4%.
+
+The fixture also carries `knownResiduals`: four evasions the guard misses today (cross-script homoglyph, soft hyphen, spaced-out name, dotless `ı`), kept out of the score on purpose and asserted in `tests/unit/eval-metrics.test.ts` to still evade. Promote one into `rows` the day the fold is widened to catch it. Growing `rows` is always safe: the unit test enforces a floor of 70 rows, never a ceiling.
 
 ### Why it is safe
 

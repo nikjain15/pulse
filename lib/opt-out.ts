@@ -93,15 +93,47 @@ export async function tombstoneHandle(handle: string): Promise<void> {
   throw new Error(`optOuts create failed: ${res.status}`);
 }
 
-/** Every tombstoned handle, lowercased. */
-export async function fetchOptOuts(): Promise<Set<string>> {
-  // no-store: a tombstone must take effect now. A cached list would keep showing someone
-  // for the length of the cache window after they asked to be gone.
-  const res = await fetch(`${documentsUrl()}/${OPT_OUTS}?pageSize=300`, { cache: 'no-store' });
-  if (!res.ok) throw new Error(`optOuts read failed: ${res.status}`);
+/** Pages are followed to the end; this only bounds a runaway loop, never the result. */
+const MAX_OPT_OUT_PAGES = 100;
 
-  const body = (await res.json()) as { documents?: { name: string }[] };
-  return new Set((body.documents ?? []).map((d) => d.name.split('/').pop()!.toLowerCase()));
+/**
+ * Every tombstoned handle, lowercased.
+ *
+ * ⚠️ **Paginated, and that is a fix, not a flourish.** This used to read a single
+ * `?pageSize=300` page and drop `nextPageToken` on the floor. Firestore's REST list is
+ * paged, so the 301st person to opt out would have been silently absent from the returned
+ * set and would have reappeared on the landing page, the exact failure this module's
+ * header says must never happen, waiting behind a number nobody would notice crossing.
+ * The pilot is 65 people, so it had not bitten; that is luck, not a design.
+ */
+export async function fetchOptOuts(): Promise<Set<string>> {
+  const handles = new Set<string>();
+  let pageToken: string | undefined;
+
+  for (let page = 0; page < MAX_OPT_OUT_PAGES; page++) {
+    const url = new URL(`${documentsUrl()}/${OPT_OUTS}`);
+    url.searchParams.set('pageSize', '300');
+    // Ids only: the document bodies hold nothing this function reads, and not asking for
+    // them keeps the response small on a path that runs on every landing-page render.
+    url.searchParams.set('mask.fieldPaths', 'handle');
+    if (pageToken) url.searchParams.set('pageToken', pageToken);
+
+    // no-store: a tombstone must take effect now. A cached list would keep showing someone
+    // for the length of the cache window after they asked to be gone.
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`optOuts read failed: ${res.status}`);
+
+    const body = (await res.json()) as { documents?: { name: string }[]; nextPageToken?: string };
+    for (const d of body.documents ?? []) handles.add(d.name.split('/').pop()!.toLowerCase());
+
+    if (!body.nextPageToken) return handles;
+    pageToken = body.nextPageToken;
+  }
+
+  // A hundred full pages is 30,000 tombstones in a 65-person pilot: something is wrong, and
+  // the wrong answer here is a partial list presented as complete. Fail closed: the caller
+  // (`removeOptedOut`) already treats a throw as "show nobody", which is the safe direction.
+  throw new Error('optOuts read exceeded the page ceiling; refusing to return a partial list');
 }
 
 export function withoutOptedOut(members: PublicMember[], tombstoned: Set<string>): PublicMember[] {

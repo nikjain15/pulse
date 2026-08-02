@@ -3,14 +3,18 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
+  getDocs,
   limit,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   Timestamp,
+  where,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { cutoffFor, ruleFor } from './retention';
 
 /**
  * The Ask Pulse agent's memory — the running conversation, per user.
@@ -72,8 +76,44 @@ export async function appendTurn(uid: string, role: TurnRole, text: string): Pro
       text: trimmed.slice(0, 1000),
       createdAt: serverTimestamp(),
     });
+    // Retention, enforced here rather than only written down. Best-effort and unawaited:
+    // trimming history must never delay or fail the reply the member is waiting for.
+    void pruneOldTurns(uid);
     return ref.id;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Drop turns past the retention window (`lib/retention.ts`, askThreads/{uid}/turns).
+ *
+ * This runs on the CLIENT, on the member's own subtree, which is the only place with a
+ * credential for it: `firestore.rules` scopes `askThreads/{uid}/turns` to that uid alone,
+ * and there is no service account in most deployments. So the write path is the enforcement
+ * point, not a nightly job. The trade is honest and worth naming: a member who never opens
+ * Ask Pulse again keeps their old turns until they do. The sweep in
+ * `lib/retention-admin.ts` is what would close that, and it needs a credential.
+ *
+ * The panel already reads only the newest THREAD_LIMIT turns, so anything this removes was
+ * invisible to its owner and being kept for nobody.
+ */
+export async function pruneOldTurns(uid: string, now: Date = new Date()): Promise<number> {
+  const rule = ruleFor('askThreads/{uid}/turns');
+  const cutoff = rule ? cutoffFor(rule, now) : null;
+  if (!cutoff) return 0;
+  try {
+    const stale = await getDocs(
+      query(
+        collection(db, 'askThreads', uid, 'turns'),
+        where('createdAt', '<', Timestamp.fromDate(cutoff)),
+        limit(200)
+      )
+    );
+    await Promise.all(stale.docs.map((d) => deleteDoc(d.ref)));
+    return stale.size;
+  } catch {
+    // A failed prune is a retention miss, never a broken conversation. The next append retries.
+    return 0;
   }
 }

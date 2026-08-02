@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { narrate, type NarrationResult } from '@/lib/narrate';
 import { evictExpired, hitRateLimit, type RateLimitState } from '@/lib/rate-limit';
-import { recordCall } from '@/lib/usage-admin';
+import { recordCall, recordOutcome } from '@/lib/usage-admin';
 import type { Evidence } from '@/lib/types';
 
 /** The pinned model, mirrored here only to attribute cost. Same default as lib/narrate. */
@@ -119,6 +119,14 @@ export async function POST(request: Request) {
   if (result.kind !== 'skipped_cached' && result.usage) {
     await recordCall({ model: MODEL, kind: 'narrate', usage: result.usage });
   }
+
+  // What the attempt DID, as distinct from what it cost (SH3). This is the counter the
+  // degradation threshold in `lib/health.ts` reads: a facts-only fallback is fine for one
+  // member and is a broken product at 50% of attempts, and until this existed nothing
+  // anywhere could tell those two apart. Same best-effort contract as recordCall.
+  await recordOutcome(
+    result.kind === 'facts_only' ? { kind: 'facts_only', reason: result.reason } : { kind: result.kind }
+  );
 
   // 200 on every path: facts_only and skipped_cached are outcomes the caller handles, not
   // errors. narrate() never throws.

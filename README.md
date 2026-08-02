@@ -43,12 +43,14 @@ threat, not from a feature list.
   empty or over-length output, and Unicode evasions (zero-width spaces, combining marks). This is the
   strongest property in the system: injection's whole payoff is publishing something about someone else,
   and the guard closes that off deterministically rather than asking a model to police itself.
-- **Named guard eval metrics, framed honestly.** The guard runs against a labeled 49-row fixture
+- **Named guard eval metrics, framed honestly.** The guard runs against a labeled 76-row fixture
   (`evals/guard-fixture.json`) scored by `lib/eval-metrics.ts`, whose math is unit-tested against a
   hand-built confusion matrix. Over that fixture the guard scores 100% precision, recall, and F1
-  (TP=26, FP=0, FN=0, TN=23). This is a fixture eval of the guard, not a production-accuracy claim, and
-  the fixture does not exercise the documented cross-script homoglyph blind spot (`foldForMention` in
-  `lib/sense.ts`), which stays an open residual.
+  (TP=41, FP=0, FN=0, TN=35). This is a fixture eval of the guard, not a production-accuracy claim:
+  41 of 41 must-block rows is a 95% Wilson lower bound of 91.4%. The fixture also carries a
+  `knownResiduals` list of four evasions the guard genuinely misses today (cross-script homoglyph,
+  soft hyphen, spaced-out name, dotless `ı`). They are excluded from the score on purpose and asserted
+  to still evade, so widening `foldForMention` turns CI red until they are promoted into the score.
 - **The answer path is a bounded Conduit agent loop.** Ask-Pulse's generative answers run through a
   bounded reason-act loop (`lib/ask-agent.ts`) with a hard step cap. Each turn routes per ask across a
   cheap and a reasoning tier (`lib/conduit/routing.ts`): Haiku 4.5 handles the bulk of asks and only
@@ -76,6 +78,8 @@ Deeper product and engineering write-ups live in [`docs/`](docs/):
 - [TECHNICAL_NOTES.md](docs/TECHNICAL_NOTES.md), the 12-point AI-engineering scorecard, model/orchestration detail, guardrails, and the honest cost breakdown.
 - [MCP.md](docs/MCP.md), the read-only Model Context Protocol server: the two cohort-read tools, the stdio entry, and the hosted URL shape.
 - [FDE_JOURNEY.md](docs/FDE_JOURNEY.md), how Pulse deploys into a live team: integration, secrets, rollout/cutover, observability, de-risking.
+- [RUNBOOK.md](docs/RUNBOOK.md), the incident rollback for the one failure that hurts a person: a prompt or model change is live and the published narratives are wrong. Kill switch first, redaction second, revert third, and the incident becomes a permanent fixture row.
+- [RETENTION.md](docs/RETENTION.md), retention windows per data type and what they are enforced by, the participant deletion path, and a plain list of what deletion cannot reach.
 
 A runnable, production-safe eval for the prompt-injection guard lives in [`evals/`](evals/), see its [README](evals/README.md).
 

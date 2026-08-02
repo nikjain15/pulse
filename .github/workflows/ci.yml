@@ -11,10 +11,17 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Read-only by default. Nothing in this workflow writes to the repo, publishes a package,
+# or comments on a PR, so nothing here needs a token that can. Least privilege at the
+# workflow level means a compromised build step cannot push.
+permissions:
+  contents: read
+
 jobs:
   check:
     name: typecheck · lint · unit · build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -35,10 +42,7 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
-      # The production build is gated too. The emulator-backed suites (rules / integration / e2e)
-      # need Java and a Firebase emulator and are run via `npm run gate` locally; CI keeps to the
-      # checks that need no emulator. Dummy public Firebase values let the static prerender succeed
-      # without any real secret.
+      # Dummy public Firebase values let the static prerender succeed without any real secret.
       - name: Build
         env:
           NEXT_PUBLIC_FIREBASE_API_KEY: dummy
@@ -48,3 +52,102 @@ jobs:
           NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "1"
           NEXT_PUBLIC_FIREBASE_APP_ID: "1:1:web:1"
         run: npm run build
+
+  # The gate that did not exist while 16 Dependabot alerts accumulated (SH10).
+  # A separate job on purpose: a supply-chain failure should read as a supply-chain
+  # failure, not as "the build broke".
+  supply-chain:
+    name: dependency audit · secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # gitleaks scans history, not just the tip. A secret committed and then
+          # "removed" in a later commit is still a leaked secret.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Fails on any high/critical advisory in a SHIPPED dependency that is not covered by
+      # a dated entry in scripts/audit/allowlist.json, and fails just as hard when one of
+      # those entries is past its expiry date. See scripts/audit/gate.mjs.
+      - name: Dependency audit gate
+        run: npm run audit:gate
+
+      # Informational, never gating: a dev-only advisory is a fact about the build box,
+      # not about what the cohort loads in a browser. Printed so it stays visible.
+      - name: Full audit, report only
+        if: always()
+        run: npm audit || true
+
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          set -euo pipefail
+          # Pinned version plus pinned checksum rather than the marketplace action: this job
+          # exists to reduce supply-chain trust, so it should not add an unpinned one.
+          url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL "$url" -o /tmp/gitleaks.tar.gz
+          echo "${GITLEAKS_SHA256}  /tmp/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      # ANTHROPIC_API_KEY, GITHUB_TOKEN and FIREBASE_SERVICE_ACCOUNT all live in this
+      # project's environment. Committing any of them is a one-line mistake with a long tail.
+      - name: Secret scan
+        run: gitleaks detect --no-banner --redact --exit-code 1 --log-opts="--all"
+
+  # The repo's own highest-value tests. TESTING.md calls the rules and integration suites
+  # the ones that would actually catch a privacy regression, and until now they ran only
+  # through `npm run gate` on Nik's laptop, which means they ran when he remembered.
+  #
+  # Modelled on Rally's emulator job, which is green in that repo. Java is the only extra
+  # requirement: the Firestore emulator is a JVM process, and firebase-tools is already a
+  # devDependency, so `npm ci` brings the emulator launcher with it.
+  emulator:
+    name: rules · integration (Firestore emulator)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # The emulator jars download on first run. Caching them keeps this job off the
+      # critical path of a Google CDN, the single most likely source of flake here.
+      - name: Cache Firebase emulator binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: firebase-emulators-${{ runner.os }}-
+
+      - name: Install
+        run: npm ci
+
+      # Rules first: it is the faster suite and the one that fails loudest when a privacy
+      # boundary moves. Integration then drives the real lib/data functions through the
+      # client SDK, so the same rules apply exactly as they do in a browser.
+      - name: Rules tests
+        run: npm run test:rules
+
+      - name: Integration tests
+        run: npm run test:integration
