@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { scoreGroundedness, judgeGroundedness } from '../lib/groundedness.ts';
 import type { Evidence } from '../lib/types.ts';
+import { agreementStats, kappaBand, type Comparison } from './judge-metrics.ts';
 
 type Case = {
   id: string;
@@ -70,19 +71,34 @@ if (failures.length) {
 }
 
 // Optional LLM-judge pass — richer, but only where a key exists. Best-effort, never fails CI.
+//
+// This block used to print one line, `agreement vs labels`, and that line could not be
+// read. On a set that is half grounded, a judge answering "grounded" to everything scores
+// 50%; on a skewed set it scores the skew. Raw agreement measures the dataset as much as
+// the judge, and it cannot tell a judge that over-flags from one that publishes inventions.
+// It now reports through `judge-metrics.ts`, next to the number it has to beat.
+//
+// This is still the SMALL set, and it is a spot check rather than the validation. The real
+// measurement is `run-judge-validation.ts`, on a purpose-built class-balanced set that
+// includes cases `scoreGroundedness` is blind to. See EVALS.md §5.
 if (process.env.ANTHROPIC_API_KEY) {
-  let judged = 0;
-  let agreed = 0;
+  const comparisons: Comparison[] = [];
   for (const c of data.cases) {
     const verdict = await judgeGroundedness(c.narrative, c.evidence, c.material);
     if (!verdict) continue;
-    judged += 1;
-    if (verdict.grounded === c.grounded) agreed += 1;
+    comparisons.push({ gold: c.grounded, judge: verdict.grounded });
   }
-  if (judged) {
+  if (comparisons.length) {
+    const s = agreementStats(comparisons);
+    const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
     console.log('\nLLM judge (judgeGroundedness)');
     console.log('-----------------------------');
-    console.log(`agreement vs labels   : ${((agreed / judged) * 100).toFixed(1)}%  (${agreed}/${judged})`);
+    console.log(`raw agreement         : ${pct(s.agreement)}  (${s.tp + s.tn}/${s.n})`);
+    console.log(`always-grounded judge : ${pct(s.baseRate)}   <- the number above must beat this`);
+    console.log(`Cohen's kappa         : ${s.kappa.toFixed(3)}   (${kappaBand(s.kappa)})`);
+    console.log(`kept honest narratives: ${pct(s.trueGroundedRate)}   (${s.tp}/${s.tp + s.fn})`);
+    console.log(`caught inventions     : ${pct(s.trueUngroundedRate)}   (${s.tn}/${s.tn + s.fp})`);
+    console.log('\n(Spot check only. The validation is `npm run eval:judge-validation`.)');
   }
 } else {
   console.log('\n(LLM judge skipped: set ANTHROPIC_API_KEY to run judgeGroundedness too.)');

@@ -1,0 +1,224 @@
+{
+  "version": "v1",
+  "note": "Pulse judge validation set, v1. 24 cases, 12 grounded and 12 ungrounded.\n\nPURPOSE. This set measures whether `judgeGroundedness` MARKS CORRECTLY. Every groundedness score the judge produces is unreadable until this number exists, because an unvalidated judge is an opinion with a percentage attached.\n\nWHY IT IS SEPARATE from groundedness-dataset.json. That set exists to regression-test `scoreGroundedness`, the deterministic scorer, and every case in it is by construction catchable by a regex over PR numbers and file paths. Measuring the LLM judge on it would answer 'does the judge agree with the regex', which is not the question. Half the cases here are deliberately INVISIBLE to the deterministic scorer (band U-SCOPE and band G-VAGUE): they invent or avoid claims that contain no PR number and no file path at all. That is the judge's whole reason to exist, and it is the part that was never measured.\n\nCLASS BALANCE is 12/12 and enforced in code by `classBalanceProblems`. On this set a judge that answers 'grounded' to everything scores 50 percent raw agreement and kappa 0, which is the point: raw agreement measures the dataset as much as the judge.\n\nLABELS ARE DECIDABLE, not opinion. `grounded: false` means the narrative asserts a specific that contradicts the evidence or does not appear in it. Vague praise is never labelled ungrounded, because it is unfalsifiable from evidence alone and the product deliberately does not flag it. Where a label could be argued, `why` states the exact clause that decides it.\n\nBANDS\n  G-PLAIN  grounded, prose only, no checkable specifics\n  G-VAGUE  grounded, and the honest scope is modest, so it tests over-flagging\n  G-PR     grounded, cites a PR number that is in the evidence\n  G-FILE   grounded, cites a file that is in the evidence\n  U-PR     invents a PR number not in the evidence\n  U-FILE   invents a file path not in the evidence\n  U-SCOPE  invents WORK, with no PR or file reference at all, so the deterministic scorer cannot see it",
+  "cases": [
+    {
+      "id": "g-plain-oauth",
+      "band": "G-PLAIN",
+      "grounded": true,
+      "narrative": "Fixed the OAuth redirect loop after a two-hour fight.",
+      "evidence": { "commits": 6, "prNumbers": [40], "files": ["lib/auth.ts"], "spanHours": 2 },
+      "material": ["Fix the OAuth redirect loop", "auth: stop double-redirect"],
+      "why": "Every clause traces: the redirect loop is in two commit messages, and spanHours 2 supports 'two-hour'."
+    },
+    {
+      "id": "g-plain-flaky",
+      "band": "G-PLAIN",
+      "grounded": true,
+      "narrative": "Tracked down a flaky test that had been failing intermittently for days.",
+      "evidence": { "commits": 4, "prNumbers": [], "files": ["tests/unit/sense.test.ts"], "spanHours": 5 },
+      "material": ["fix flaky sense test", "test: stabilise timing assertion", "retry once on timer jitter"],
+      "why": "Flakiness and the test file both appear in the material. No specific is asserted that is not there."
+    },
+    {
+      "id": "g-vague-small",
+      "band": "G-VAGUE",
+      "grounded": true,
+      "narrative": "Small day. Cleaned up some naming and moved on.",
+      "evidence": { "commits": 2, "prNumbers": [], "files": ["lib/types.ts"], "spanHours": 1 },
+      "material": ["rename Evidence.span to spanHours", "tidy type names"],
+      "why": "Modest and accurate. A judge that flags this is over-flagging honest narratives, which is the failure mode this band exists to catch."
+    },
+    {
+      "id": "g-vague-nothing-shipped",
+      "band": "G-VAGUE",
+      "grounded": true,
+      "narrative": "Mostly reading code today, nothing shipped.",
+      "evidence": { "commits": 1, "prNumbers": [], "files": ["README.md"], "spanHours": 1 },
+      "material": ["docs: note on retrieval ordering"],
+      "why": "Claims almost nothing and the one commit is a docs note. Understating is not ungrounded."
+    },
+    {
+      "id": "g-vague-hard-day",
+      "band": "G-VAGUE",
+      "grounded": true,
+      "narrative": "Wrestled with a caching problem most of the afternoon and finally got somewhere.",
+      "evidence": { "commits": 9, "prNumbers": [], "files": ["lib/cache.ts"], "spanHours": 4 },
+      "material": ["cache: wrong key on retry", "cache: still wrong", "cache: fix key derivation", "revert cache experiment"],
+      "why": "Nine commits over four hours on cache.ts, with two reverts in the material, supports both the struggle and the eventual progress."
+    },
+    {
+      "id": "g-pr-single",
+      "band": "G-PR",
+      "grounded": true,
+      "narrative": "Landed #40, which finally stops the double redirect.",
+      "evidence": { "commits": 6, "prNumbers": [40], "files": ["lib/auth.ts"], "spanHours": 2 },
+      "material": ["Fix the OAuth redirect loop", "auth: stop double-redirect"],
+      "why": "PR 40 is in prNumbers and the double redirect is in the material."
+    },
+    {
+      "id": "g-pr-two",
+      "band": "G-PR",
+      "grounded": true,
+      "narrative": "Shipped PR 12 and PR 15 back to back.",
+      "evidence": { "commits": 7, "prNumbers": [12, 15], "files": ["lib/sense.ts", "lib/health.ts"], "spanHours": 6 },
+      "material": ["sense: widen the signal window", "health: add threshold check"],
+      "why": "Both PR numbers are in the evidence."
+    },
+    {
+      "id": "g-pr-with-file",
+      "band": "G-PR",
+      "grounded": true,
+      "narrative": "#88 rewrites the retry logic in lib/retry.ts.",
+      "evidence": { "commits": 3, "prNumbers": [88], "files": ["lib/retry.ts"], "spanHours": 3 },
+      "material": ["retry: exponential backoff with jitter", "retry: cap total attempts"],
+      "why": "The PR number and the file are both in the evidence, and the material supports 'rewrites the retry logic'."
+    },
+    {
+      "id": "g-file-single",
+      "band": "G-FILE",
+      "grounded": true,
+      "narrative": "Spent the day in lib/groundedness.ts tightening the scorer.",
+      "evidence": { "commits": 5, "prNumbers": [], "files": ["lib/groundedness.ts"], "spanHours": 7 },
+      "material": ["groundedness: narrow the file-ref regex", "groundedness: ignore prose claims"],
+      "why": "The file is in the evidence and the material describes scorer changes."
+    },
+    {
+      "id": "g-file-two",
+      "band": "G-FILE",
+      "grounded": true,
+      "narrative": "Touched components/TaskCard.tsx and lib/types.ts to get the new field through.",
+      "evidence": { "commits": 4, "prNumbers": [], "files": ["components/TaskCard.tsx", "lib/types.ts"], "spanHours": 2 },
+      "material": ["types: add evidence.spanHours", "TaskCard: render the span"],
+      "why": "Both files are in the evidence and the material matches the described threading of a new field."
+    },
+    {
+      "id": "g-file-basename",
+      "band": "G-FILE",
+      "grounded": true,
+      "narrative": "Reworked sense.ts so the window is configurable.",
+      "evidence": { "commits": 6, "prNumbers": [], "files": ["lib/sense.ts"], "spanHours": 5 },
+      "material": ["sense: make the window configurable", "sense: default to 24h"],
+      "why": "Naming a file by basename when the full path is in the evidence is normal writing, not an invented claim."
+    },
+    {
+      "id": "g-file-and-plain",
+      "band": "G-FILE",
+      "grounded": true,
+      "narrative": "Long slog on lib/retention.ts. The sweep finally deletes what it says it deletes.",
+      "evidence": { "commits": 11, "prNumbers": [], "files": ["lib/retention.ts"], "spanHours": 8 },
+      "material": ["retention: sweep missed the second page", "retention: paginate properly", "retention: test the 301st row"],
+      "why": "Eleven commits over eight hours supports 'long slog', and the pagination fix supports the claim about the sweep."
+    },
+
+    {
+      "id": "u-pr-invented",
+      "band": "U-PR",
+      "grounded": false,
+      "narrative": "Shipped PR 999 overhauling the entire billing system.",
+      "evidence": { "commits": 6, "prNumbers": [40], "files": ["lib/auth.ts"], "spanHours": 2 },
+      "material": ["Fix the OAuth redirect loop"],
+      "why": "PR 999 is not in prNumbers, and billing appears nowhere in the evidence or material."
+    },
+    {
+      "id": "u-pr-near-miss",
+      "band": "U-PR",
+      "grounded": false,
+      "narrative": "Closed out #41 this morning.",
+      "evidence": { "commits": 3, "prNumbers": [40], "files": ["lib/auth.ts"], "spanHours": 2 },
+      "material": ["auth: stop double-redirect"],
+      "why": "PR 41 is not in the evidence. 40 is. A number that is off by one is still a fabricated specific."
+    },
+    {
+      "id": "u-pr-mixed",
+      "band": "U-PR",
+      "grounded": false,
+      "narrative": "Landed #12 and #77 today.",
+      "evidence": { "commits": 5, "prNumbers": [12], "files": ["lib/sense.ts"], "spanHours": 4 },
+      "material": ["sense: widen the signal window"],
+      "why": "PR 12 is real, PR 77 is not. One invented specific in an otherwise true sentence is still ungrounded."
+    },
+    {
+      "id": "u-file-invented",
+      "band": "U-FILE",
+      "grounded": false,
+      "narrative": "Rewrote lib/payments.ts from scratch.",
+      "evidence": { "commits": 4, "prNumbers": [], "files": ["lib/auth.ts"], "spanHours": 3 },
+      "material": ["auth: stop double-redirect"],
+      "why": "lib/payments.ts is not in the evidence and payments appear nowhere in the material."
+    },
+    {
+      "id": "u-file-wrong-dir",
+      "band": "U-FILE",
+      "grounded": false,
+      "narrative": "Fixed the bug in services/worker.ts.",
+      "evidence": { "commits": 2, "prNumbers": [], "files": ["lib/worker.ts"], "spanHours": 1 },
+      "material": ["worker: clear the queue on shutdown"],
+      "why": "A file with the same basename in a directory that does not exist in the evidence. Recorded as ungrounded because the asserted path is not one Pulse retrieved; this is the case most likely to split a judge and a regex, which is why it is here."
+    },
+    {
+      "id": "u-file-and-pr",
+      "band": "U-FILE",
+      "grounded": false,
+      "narrative": "#40 rewrites lib/telemetry.ts end to end.",
+      "evidence": { "commits": 6, "prNumbers": [40], "files": ["lib/auth.ts"], "spanHours": 2 },
+      "material": ["Fix the OAuth redirect loop"],
+      "why": "The PR is real, the file is invented. Attaching a fabricated file to a real PR is the most plausible-looking failure in this set."
+    },
+
+    {
+      "id": "u-scope-invented-feature",
+      "band": "U-SCOPE",
+      "grounded": false,
+      "narrative": "Built and shipped the entire notifications system today, end to end.",
+      "evidence": { "commits": 2, "prNumbers": [], "files": ["lib/auth.ts"], "spanHours": 1 },
+      "material": ["auth: stop double-redirect"],
+      "why": "No PR number and no file path, so the deterministic scorer cannot see this at all. Two commits on auth.ts over one hour do not support an end-to-end notifications system. This is exactly what the LLM judge is for."
+    },
+    {
+      "id": "u-scope-invented-incident",
+      "band": "U-SCOPE",
+      "grounded": false,
+      "narrative": "Spent the day firefighting a production outage and got us back up.",
+      "evidence": { "commits": 3, "prNumbers": [], "files": ["README.md", "docs/EVALS.md"], "spanHours": 2 },
+      "material": ["docs: describe the retrieval eval", "docs: fix a typo", "docs: add a table"],
+      "why": "Three documentation commits. There is no outage, no production code touched, and nothing in the material suggests an incident."
+    },
+    {
+      "id": "u-scope-invented-collab",
+      "band": "U-SCOPE",
+      "grounded": false,
+      "narrative": "Pair programmed the migration with the platform team all afternoon.",
+      "evidence": { "commits": 1, "prNumbers": [], "files": ["lib/types.ts"], "spanHours": 0 },
+      "material": ["types: rename a field"],
+      "why": "One commit renaming a field, spanHours 0. Nothing supports an afternoon of pairing or a migration."
+    },
+    {
+      "id": "u-scope-invented-scale",
+      "band": "U-SCOPE",
+      "grounded": false,
+      "narrative": "Cut p95 latency by 60 percent across the whole API.",
+      "evidence": { "commits": 2, "prNumbers": [], "files": ["lib/cache.ts"], "spanHours": 1 },
+      "material": ["cache: add a short TTL"],
+      "why": "A precise measured figure with nothing measuring it. No benchmark, no API-wide change, one TTL commit. Inventing a number is the failure this product most needs caught."
+    },
+    {
+      "id": "u-scope-invented-duration",
+      "band": "U-SCOPE",
+      "grounded": false,
+      "narrative": "Twelve hour day, absolutely relentless from start to finish.",
+      "evidence": { "commits": 2, "prNumbers": [], "files": ["lib/sense.ts"], "spanHours": 1 },
+      "material": ["sense: tweak a constant"],
+      "why": "spanHours is 1 and there are two commits. The narrative asserts a duration the evidence directly contradicts."
+    },
+    {
+      "id": "u-scope-invented-team",
+      "band": "U-SCOPE",
+      "grounded": false,
+      "narrative": "Unblocked three other engineers who were stuck on the release.",
+      "evidence": { "commits": 4, "prNumbers": [], "files": ["lib/health.ts"], "spanHours": 3 },
+      "material": ["health: add threshold check", "health: log the trip"],
+      "why": "No evidence of a release or of anyone else. This also tests the boundary with the safety guard: `checkNarrative` catches NAMED people deterministically, and an unnamed but invented claim about colleagues is groundedness, not safety."
+    }
+  ]
+}

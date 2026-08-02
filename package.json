@@ -18,6 +18,7 @@
     "eval:guard": "node evals/run-guard-eval.ts",
     "eval:guard-metrics": "node evals/run-guard-metrics.ts",
     "eval:groundedness": "node evals/run-groundedness-eval.ts",
+    "eval:judge-validation": "node evals/run-judge-validation.ts",
     "audit:gate": "node scripts/audit/gate.mjs",
     "secrets:scan": "gitleaks detect --no-banner --redact --exit-code 1 --log-opts=--all",
     "retention:sweep": "node scripts/retention/sweep.ts",
