@@ -213,12 +213,19 @@ describe('extractRecipe — every failure is thin, never invented', () => {
   });
 
   it('does NOT cache a failure — a transient outage must not pin thin onto a PR forever', async () => {
-    create.mockRejectedValueOnce(new Error('network'));
-    await run();
+    // A network failure is transient, so the first tap now exhausts the retry ladder
+    // (lib/retry.ts) before landing on thin. What must not change is that thin was never
+    // remembered: the re-tap makes a fresh call and gets a real draft.
+    create.mockRejectedValue(new Error('network'));
+    const first = await run();
+    expect(first.thin).toBe(true);
+    expect(create.mock.calls.length).toBeGreaterThan(1);
+
+    create.mockReset();
     reply('PROBLEM: The redirect looped\nWHAT WORKED:\n1. Removed the trailing slash');
     const second = await run();
     expect(second.thin).toBe(false);
-    expect(create).toHaveBeenCalledTimes(2);
+    expect(create).toHaveBeenCalledTimes(1);
   });
 
   it('survives injection in commit messages — the draft is whatever the model returns, parsed or thin', async () => {

@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient, type ConduitClient, type EmbeddedResolve } from '@conduit/client';
 import { computeCallCostUsd, usageFromResponse } from '../usage';
+import { logAttempts, withRetry } from '../retry';
 
 /**
  * Pulse's embedding of `@conduit/client` (see conduit/VENDOR.md).
@@ -65,7 +66,19 @@ export function buildPulseResolve(anthropic: Anthropic, sampling?: Sampling): Em
     }
 
     const started = Date.now();
-    const response = await anthropic.messages.create(body);
+    // Resilience lives here, at the single seam, so every generation the agent loop makes gets it
+    // once and only once. The ladder is deliberately SHORTER than the default: this call sits
+    // inside a bounded reason-act loop that can take several model turns in one request (and may
+    // run a second escalated pass), so a full-length ladder on every turn would multiply into the
+    // route ceiling. One retry per turn recovers the common blip; anything worse is better spent
+    // returning the answer path's existing no-answer degradation while the request is still alive.
+    const response = await withRetry((signal) => anthropic.messages.create(body, { signal }), {
+      maxRetries: 1,
+      attemptTimeoutMs: 6_000,
+      totalBudgetMs: 7_000,
+      onAttempt: logAttempts('conduit:infer'),
+    });
+    // Wall time including any retry: what the caller waited is the honest latency to meter.
     const latencyMs = Date.now() - started;
 
     const text = response.content

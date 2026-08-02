@@ -20,6 +20,19 @@ and supplies the `ChatMessage` type the agent loop shares. The provider adapters
 judge, and RAG/eval packages are intentionally not vendored; Pulse injects its own
 model call as the embedded client's `resolve`, so no runtime provider code is needed.
 
+### None of the vendored runtime code runs, including its retry
+
+`inference/src/core.ts` is vendored for its **type surface only**. Its bodies, including the
+429 backoff around `anthropic.retries` / `retryBaseMs`, are dead code in this repo: nothing
+imports or calls them, because Pulse supplies its own `resolve`. Do not read that file as
+evidence that Pulse retries anything.
+
+Pulse's real resilience is `lib/retry.ts`, and it is the only retry in the app. It wraps every
+live provider call (`lib/narrate.ts`, `lib/brief.ts`, `lib/extract.ts`, `lib/agent-plan.ts`,
+`lib/groundedness.ts`, and the single provider seam in `lib/conduit/client.ts`) with bounded
+retry, jittered backoff and a per-attempt timeout, then rethrows so each caller's existing
+graceful degradation runs unchanged. See the failure ladder in `docs/ARCHITECTURE.md`.
+
 ## How imports resolve
 
 The four packages are exposed to Pulse via `@conduit/*` aliases declared in

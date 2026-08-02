@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Evidence } from './types';
+import { logAttempts, withRetry } from './retry';
 
 /**
  * Groundedness scoring for published narratives. EVALS.md §5.
@@ -140,13 +141,23 @@ export async function judgeGroundedness(
   const anthropic = getClient();
   if (!anthropic) return null;
   try {
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 200,
-      system: JUDGE_SYSTEM,
-      output_config: { effort: 'low' },
-      messages: [{ role: 'user', content: buildJudgePrompt(narrative, evidence, material) }],
-    });
+    // The judge runs offline in an eval harness, not in a request, but it is the same provider
+    // and the same transient failures. A retried blip here is one fewer eval row scored `null`
+    // for a reason that has nothing to do with groundedness.
+    const response = await withRetry(
+      (signal) =>
+        anthropic.messages.create(
+          {
+            model: MODEL,
+            max_tokens: 200,
+            system: JUDGE_SYSTEM,
+            output_config: { effort: 'low' },
+            messages: [{ role: 'user', content: buildJudgePrompt(narrative, evidence, material) }],
+          },
+          { signal }
+        ),
+      { onAttempt: logAttempts('groundedness-judge') }
+    );
     if (response.stop_reason === 'refusal') return null;
     const text = response.content
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')

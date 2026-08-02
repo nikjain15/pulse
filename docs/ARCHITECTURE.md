@@ -6,7 +6,7 @@ Grounded in the actual code paths under `lib/`, `app/api/`, and `firestore.rules
 
 - **Next.js 16 / React 19 / TypeScript:** app router, server routes under `app/api/*`.
 - **Firestore (realtime):** client SDK in the browser for live reads; `firebase-admin` server-side for privileged writes. Security enforced by `firestore.rules` (~21 KB of rules, tested).
-- **Server-side AI:** `@anthropic-ai/sdk`, called only from server routes. The API key never reaches the client. The auto-publish narration, extraction and brief paths call a single model (`claude-opus-4-8`, env `ANTHROPIC_MODEL`). The generative Ask-Pulse answer path routes through an embedded `@conduit/client` and picks a model per turn (see below).
+- **Server-side AI:** `@anthropic-ai/sdk`, called only from server routes. The API key never reaches the client. The auto-publish narration, extraction and brief paths call a single model (`claude-opus-4-8`, env `ANTHROPIC_MODEL`). The generative Ask-Pulse answer path routes through an embedded `@conduit/client` and picks a model per turn (see below). Every live call is wrapped by `lib/retry.ts` (bounded retry, jittered backoff, per-attempt timeout) before it falls back to the facts-only degradation.
 - **Vercel:** hosting and cron/poll trigger. Live at pulsecohort.vercel.app.
 - **MCP:** a separate, read-only Model Context Protocol server exposes the cohort's public activity to MCP clients. See [MCP.md](MCP.md).
 
@@ -134,6 +134,28 @@ Each metered call from the answer path can be reported to a central Conduit gate
 
 `lib/semantic-retrieval.ts` (a cosine vector rerank over the vendored `@conduit/rag`) and the `search_board` tool exist and are unit-tested, but they are **dormant in production**. The embedder is injected, and no embedding provider is wired at the ask-pulse route (`app/api/ask-pulse/route.ts` calls `runAskAgent` without an `embed`). With none configured, `semanticRerank` returns `{ kind: 'disabled' }` and `search_board` degrades to the same case-insensitive substring match the exact-match path uses. So live retrieval is substring matching today; the semantic rerank activates only once a real embedder is injected. It is a strict enhancement, not a live capability, and is not claimed as one.
 
+## The failure ladder for a model call
+
+Every live model call in Pulse (`lib/narrate.ts`, `lib/brief.ts`, `lib/extract.ts`, `lib/agent-plan.ts`, `lib/groundedness.ts`, and the single provider seam in `lib/conduit/client.ts`) goes through the same three rungs, in this order. The bottom rung is the original graceful degradation, unchanged; the two above it were added so a blip stops costing a member their sentence.
+
+1. **Retry, with full jitter.** `withRetry` in `lib/retry.ts` gives a transient failure another attempt: HTTP 408, 409, 425, 429, 500, 502, 503, 504, 529, and network or abort errors that carry no status. Two retries, so three attempts. The wait is exponential backoff with full jitter (a uniform draw over `[0, min(2^n * 250ms, 2000ms))`), because narration fans out across the whole cohort in one sync and fixed backoff would send every member's retry back as a single wave. A `Retry-After` header is honoured when the provider sends one, capped at 2s so a hostile or absurd value cannot park a user-facing request. A **400 or 401 is never retried**: those are facts about the request, and asking again buys the identical rejection twice.
+2. **Timeout.** Each attempt gets a hard 6s bound enforced by an `AbortSignal` plus a race, so a call that ignores its signal still cannot hang the request; the abort is what stops it billing tokens in the background. The whole ladder is capped at 9s of wall time, which fits under the 10s Vercel function ceiling that no route in this repo raises. A retry that would not fit the remaining budget is skipped in favour of degrading now, and the last attempt is clamped to whatever budget is left.
+3. **Degrade.** When the ladder is exhausted the original provider error is rethrown, so each caller's existing `catch` runs exactly as before and the discriminated-union result is unchanged. The user never sees an error.
+
+What the user sees at each step:
+
+| Step | Narration feed | Home brief | Recipe modal | Ask Pulse |
+|---|---|---|---|---|
+| Attempt 1 succeeds | The sentence | The written brief | A drafted recipe | The answer |
+| Retry succeeds | The sentence, a moment later | The brief, a moment later | The draft, a moment later | The answer, a moment later |
+| Ladder exhausted | Facts only: commit counts, PR numbers, files | The warm assembled fallback sentence | An empty modal with a calm note | An empty plan with a plain reason |
+
+Nothing on the bottom row is an error message, a spinner that never ends, or a 500. Every retry decision is reported through `onAttempt`; `logAttempts` writes one server-side line per retry and one when a call only succeeded because of a retry, so an operator can see the provider wobbling before it becomes an outage.
+
+The numbers and their reasoning live in `RETRY_DEFAULTS` in `lib/retry.ts`. The Ask-Pulse answer path deliberately runs a shorter ladder (one retry, 7s budget), because that call sits inside a bounded loop that can take several model turns in a single request.
+
+Tested in `tests/unit/retry.test.ts` (the helper, on an injected clock, sleep and timer, so there are no real timers in the suite) and `tests/unit/narrate.test.ts` (the ladder end to end through a real call path, including that a 400 and a 401 are not retried).
+
 ## Data model & security
 
 - Writes that matter (narratives, agent tasks, shared memory) are **server-only** via `firebase-admin`; the client SDK is realtime-read plus tightly-scoped writes.
@@ -146,7 +168,9 @@ Each metered call from the answer path can be reported to a central Conduit gate
 |---|---|---|
 | No API key | Publish facts only | `narrate()` `no_api_key` |
 | Model refusal (safety) | Publish facts only | checks `stop_reason === 'refusal'` |
-| Rate limit / network | Publish facts only | try/catch → `model_unavailable` |
+| Rate limit / network | Retry up to twice with jittered backoff, then publish facts only | `lib/retry.ts` → try/catch → `model_unavailable` |
+| Provider hangs | Attempt aborted at 6s, ladder capped at 9s, then publish facts only | `lib/retry.ts` `attemptTimeoutMs` / `totalBudgetMs` |
+| Bad request or bad key (400 / 401) | No retry at all, degrade immediately | `lib/retry.ts` `isTransientError` |
 | Prompt injection naming a peer | Reject, publish facts only, silently | `checkNarrative` `names_another_member` |
 | Model emits markup/HTML | Reject (belt-and-braces with React escaping) | `checkNarrative` `contains_markup` |
 | Firestore SDK dead but REST alive | Documented sign-up hang, covered in TESTING.md | `TESTING.md` |

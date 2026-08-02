@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { fetchPullCommits, fetchPullFiles, type GitHubCommit } from './github';
+import { logAttempts, withRetry } from './retry';
 
 /**
  * Recipe extraction — a DRAFT from the evidence, never a published word. **Server-side
@@ -111,23 +112,36 @@ export async function extractRecipe(input: ExtractionInput): Promise<ExtractionR
 
   let text: string;
   try {
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 700,
-      system: SYSTEM,
-      // Same shape as narration: summarising a handful of commit messages is not a
-      // reasoning problem.
-      output_config: { effort: 'low' },
-      // No `temperature`: the pinned Opus 4.8 removed sampling params (they 400). Determinism
-      // on the publish path comes from `effort: 'low'` and the deterministic guard, not a
-      // temperature dial. See lib/narrate.ts for the full rationale.
-      messages: [
-        {
-          role: 'user',
-          content: buildPrompt(input, material, files.ok ? files.data.map((f) => f.filename) : []),
-        },
-      ],
-    });
+    // Retry a transient blip before falling through to the thin recipe. A tap is human-initiated
+    // and the modal is already open and waiting, so the ladder stays bounded.
+    const response = await withRetry(
+      (signal) =>
+        anthropic.messages.create(
+          {
+            model: MODEL,
+            max_tokens: 700,
+            system: SYSTEM,
+            // Same shape as narration: summarising a handful of commit messages is not a
+            // reasoning problem.
+            output_config: { effort: 'low' },
+            // No `temperature`: the pinned Opus 4.8 removed sampling params (they 400). Determinism
+            // on the publish path comes from `effort: 'low'` and the deterministic guard, not a
+            // temperature dial. See lib/narrate.ts for the full rationale.
+            messages: [
+              {
+                role: 'user',
+                content: buildPrompt(
+                  input,
+                  material,
+                  files.ok ? files.data.map((f) => f.filename) : []
+                ),
+              },
+            ],
+          },
+          { signal }
+        ),
+      { onAttempt: logAttempts('extract-recipe') }
+    );
 
     if (response.stop_reason === 'refusal') return THIN('model_unavailable');
 

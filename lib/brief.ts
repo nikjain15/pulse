@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { BriefFacts } from './brief-fallback';
+import { logAttempts, withRetry } from './retry';
 
 export type { BriefFacts };
 
@@ -58,14 +59,25 @@ export async function composeBrief(facts: BriefFacts): Promise<BriefResult> {
 
   let text: string;
   try {
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 300,
-      system: SYSTEM,
-      // One warm sentence, not a reasoning problem — low effort, no thinking (Opus 4.8).
-      output_config: { effort: 'low' },
-      messages: [{ role: 'user', content: buildBriefPrompt(facts) }],
-    });
+    // Retry a transient blip before degrading. This one is the most user-facing model call in
+    // Pulse: it runs while the member is looking at Home, so the whole ladder is bounded well
+    // under the route ceiling and gives up in favour of the assembled fallback rather than
+    // making anyone wait (see lib/retry.ts for the numbers).
+    const response = await withRetry(
+      (signal) =>
+        anthropic.messages.create(
+          {
+            model: MODEL,
+            max_tokens: 300,
+            system: SYSTEM,
+            // One warm sentence, not a reasoning problem — low effort, no thinking (Opus 4.8).
+            output_config: { effort: 'low' },
+            messages: [{ role: 'user', content: buildBriefPrompt(facts) }],
+          },
+          { signal }
+        ),
+      { onAttempt: logAttempts('brief') }
+    );
 
     if (response.stop_reason === 'refusal') {
       return { kind: 'facts_only', reason: 'refused' };

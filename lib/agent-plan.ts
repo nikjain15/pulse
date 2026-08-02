@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { agentTools, validatePlan, type AgentAction, type BoardContext, type RawToolCall } from './agent';
+import { logAttempts, withRetry } from './retry';
 
 /**
  * "Ask Pulse" — the server-side planning call. **Server-only**: reads ANTHROPIC_API_KEY,
@@ -121,19 +122,29 @@ export async function planActions(
 
   try {
     const anthropic = new Anthropic({ apiKey: key });
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 1024,
-      system: SYSTEM,
-      tools: agentTools(ctx.canPublish) as unknown as Anthropic.Tool[],
-      output_config: { effort: 'low' },
-      messages: [
-        {
-          role: 'user',
-          content: `${renderContext(ctx, new Date().toISOString().slice(0, 10))}\n\n${renderSharedMemory(sharedMemory)}${renderHistory(history)}=== the request ===\n${utterance.slice(0, 600)}`,
-        },
-      ],
-    });
+    // The ACTION path is a person waiting on a reply, so a transient blip is retried once or
+    // twice before we tell them Pulse could not plan it. The retry is in front of the existing
+    // degradation, not instead of it: an exhausted ladder still lands on `reason: 'failed'`.
+    const response = await withRetry(
+      (signal) =>
+        anthropic.messages.create(
+          {
+            model: MODEL,
+            max_tokens: 1024,
+            system: SYSTEM,
+            tools: agentTools(ctx.canPublish) as unknown as Anthropic.Tool[],
+            output_config: { effort: 'low' },
+            messages: [
+              {
+                role: 'user',
+                content: `${renderContext(ctx, new Date().toISOString().slice(0, 10))}\n\n${renderSharedMemory(sharedMemory)}${renderHistory(history)}=== the request ===\n${utterance.slice(0, 600)}`,
+              },
+            ],
+          },
+          { signal }
+        ),
+      { onAttempt: logAttempts('ask-pulse:plan') }
+    );
 
     const raw: RawToolCall[] = response.content
       .filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')

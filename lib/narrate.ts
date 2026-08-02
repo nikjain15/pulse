@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { checkNarrative, formatEvidence, narrationCacheKey, shouldNarrate } from './sense';
 import { usageFromResponse, type CallUsage } from './usage';
+import { logAttempts, withRetry } from './retry';
 import type { Evidence } from './types';
 
 /**
@@ -99,30 +100,43 @@ export async function narrate(input: NarrationInput): Promise<NarrationResult> {
   let text: string;
   // What the call spent, for the live cost counter. Populated once the call returns; the
   // no-response failure (rate limit, network) below never reaches here, so it carries none.
+  // Retries do not change that arithmetic: an attempt that threw got no response and so billed
+  // no tokens, and an attempt that DID return is never retried (a refusal or a guard rejection
+  // is a content outcome, not an error), so its usage is still recorded exactly as before.
   let usage: CallUsage | undefined;
   try {
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 300,
-      system: SYSTEM,
-      // Effort low and no thinking: this is one sentence about a handful of commits, not a
-      // reasoning problem. Omitting `thinking` on Opus 4.8 runs without it.
-      output_config: { effort: 'low' },
-      // No `temperature` here — and that is deliberate, not an oversight. For an auto-publish
-      // path the instinct is `temperature: 0` for determinism, but the pinned model
-      // (`claude-opus-4-8`) REMOVED the sampling parameters: sending temperature/top_p/top_k
-      // returns a 400. Setting it would silently 400 every call, and since narrate() degrades
-      // any error to facts-only, the entire narration feature would go dark in production
-      // while the mocked tests stayed green. So the auditability dial here is not sampling —
-      // it is `effort: 'low'` plus the deterministic `checkNarrative` backstop that gates what
-      // can ever reach the feed. The guard, not the temperature, is what makes this safe.
-      messages: [
-        {
-          role: 'user',
-          content: buildPrompt(input),
-        },
-      ],
-    });
+    // The failure ladder: retry a transient blip first (429/5xx/network, backed off with full
+    // jitter and hard-timed-out per attempt), and only then fall through to the facts-only
+    // degradation below. `withRetry` rethrows the final error, so the catch is unchanged.
+    const response = await withRetry(
+      (signal) =>
+        anthropic.messages.create(
+          {
+            model: MODEL,
+            max_tokens: 300,
+            system: SYSTEM,
+            // Effort low and no thinking: this is one sentence about a handful of commits, not a
+            // reasoning problem. Omitting `thinking` on Opus 4.8 runs without it.
+            output_config: { effort: 'low' },
+            // No `temperature` here — and that is deliberate, not an oversight. For an auto-publish
+            // path the instinct is `temperature: 0` for determinism, but the pinned model
+            // (`claude-opus-4-8`) REMOVED the sampling parameters: sending temperature/top_p/top_k
+            // returns a 400. Setting it would silently 400 every call, and since narrate() degrades
+            // any error to facts-only, the entire narration feature would go dark in production
+            // while the mocked tests stayed green. So the auditability dial here is not sampling —
+            // it is `effort: 'low'` plus the deterministic `checkNarrative` backstop that gates what
+            // can ever reach the feed. The guard, not the temperature, is what makes this safe.
+            messages: [
+              {
+                role: 'user',
+                content: buildPrompt(input),
+              },
+            ],
+          },
+          { signal }
+        ),
+      { onAttempt: logAttempts('narrate') }
+    );
 
     // Even a refusal or a rejected sentence billed input/output tokens — record them.
     usage = usageFromResponse(response.usage);

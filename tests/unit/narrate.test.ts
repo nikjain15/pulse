@@ -197,15 +197,95 @@ describe('cost accounting — every call that ran reports what it spent', () => 
   });
 });
 
+describe('provider resilience: retry first, degrade second', () => {
+  // The ladder, end to end, through the real narrate() path: a transient blip gets another
+  // attempt (lib/retry.ts), and only an exhausted ladder falls through to facts-only. The
+  // fallback is unchanged; what changed is that it is no longer the FIRST response to a 429.
+
+  it('retries a rate-limited call and publishes the sentence the retry returned', async () => {
+    create.mockRejectedValueOnce(Object.assign(new Error('429'), { status: 429 }));
+    reply('Cracked the auth flow after a two-hour fight with the redirect.');
+
+    const result = await run();
+
+    expect(result.kind).toBe('narrated');
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries a dropped socket, which used to cost a member their sentence for the week', async () => {
+    create.mockRejectedValueOnce(Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' }));
+    reply('Shipped the sensing pipeline.');
+
+    const result = await run();
+
+    expect(result.kind).toBe('narrated');
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it('gives up after the retry cap and still degrades to facts only', async () => {
+    create.mockRejectedValue(Object.assign(new Error('503'), { status: 503 }));
+
+    const result = await run();
+
+    // Three attempts, then the original design takes over: never an error in the feed.
+    expect(create).toHaveBeenCalledTimes(3);
+    expect(result).toMatchObject({ kind: 'facts_only', reason: 'model_unavailable' });
+  });
+
+  it('does NOT retry a 400, because the request is wrong and asking again only costs latency', async () => {
+    create.mockRejectedValue(Object.assign(new Error('bad request'), { status: 400 }));
+
+    const result = await run();
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ kind: 'facts_only', reason: 'model_unavailable' });
+  });
+
+  it('does NOT retry a 401, because a bad key degrades immediately rather than three times', async () => {
+    create.mockRejectedValue(Object.assign(new Error('unauthorized'), { status: 401 }));
+
+    const result = await run();
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ kind: 'facts_only', reason: 'model_unavailable' });
+  });
+
+  it('passes an abort signal to the SDK, so a timed-out attempt stops billing tokens', async () => {
+    reply('Fixed the redirect.');
+    await run();
+
+    const options = create.mock.calls[0][1] as { signal?: AbortSignal };
+    expect(options.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('still records the usage of a call that returned, retry or not', async () => {
+    create.mockRejectedValueOnce(Object.assign(new Error('429'), { status: 429 }));
+    create.mockResolvedValueOnce({
+      stop_reason: 'end_turn',
+      content: [{ type: 'text', text: 'Fixed the redirect.' }],
+      usage: { input_tokens: 320, output_tokens: 24 },
+    });
+
+    const result = await run();
+
+    // A failed attempt got no response and so billed nothing; the attempt that DID return is
+    // priced exactly as before, so the live cost counter stays honest across a retry.
+    expect(result.kind).toBe('narrated');
+    if (result.kind === 'narrated') expect(result.usage?.inputTokens).toBe(320);
+  });
+});
+
 describe('degrading — a sensing failure never blocks the board or shouts at anyone', () => {
   it('falls back to facts only when the model is unreachable', async () => {
-    create.mockRejectedValueOnce(new Error('ECONNRESET'));
+    // Persistent, not one-off: the retry ladder above runs first, and facts-only is what is
+    // left when every attempt fails.
+    create.mockRejectedValue(new Error('ECONNRESET'));
     const result = await run();
     expect(result).toMatchObject({ kind: 'facts_only', reason: 'model_unavailable' });
   });
 
   it('falls back to facts only when the model is rate limited', async () => {
-    create.mockRejectedValueOnce(Object.assign(new Error('429'), { status: 429 }));
+    create.mockRejectedValue(Object.assign(new Error('429'), { status: 429 }));
     const result = await run();
     expect(result).toMatchObject({ kind: 'facts_only', reason: 'model_unavailable' });
   });
