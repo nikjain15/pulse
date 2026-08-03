@@ -339,17 +339,58 @@ over a set chosen to produce 100%.
 
 ## Kill criteria (R1)
 
-Kill or pivot the auto-publish design if a cohort participant reports a published narrative they did
-not consent to, or a narrative that named someone other than its actor, at any point during the
-pilot. Result so far: no such report.
+Two criteria. One is a rate and one is a single event, and they are deliberately different shapes.
 
-**The monitoring half improved on 2026-08-02 and is still not a detector.** `lib/health.ts` now
-defines what a broken narration rate looks like as a number, and `/api/usage` reports it, so a
-degradation wave or a spike in guard rejections is measurable rather than felt. But nothing polls
-it and nothing alerts, and none of those numbers would catch the specific failure this criterion
-names: a single wrong narrative that the guard passed reads as a perfectly healthy narration. The
-only detector for that is still a participant speaking up, and [RUNBOOK.md](RUNBOOK.md) is what
-happens next. Recorded as weak, and less weak than it was.
+### K1, the rate: degradation at or above 50% for a full pilot week
+
+**Kill the auto-publish design if the degradation rate is at or above 0.5 across 7 consecutive
+days, with at least 20 narration attempts in that window.**
+
+**Consequence: auto-publish OFF.** Narratives become drafts a human reviews before they reach the
+feed. Going back to auto-publish afterwards requires a new pre-committed line, not a quiet switch.
+
+Committed 2026-08-02, before the window it governs. Evaluated by `evaluateKillLine` in
+[`lib/kill-criteria.ts`](../lib/kill-criteria.ts), covered by `tests/unit/kill-criteria.test.ts`.
+
+Neither number is new, which is the point. 0.5 is `DEGRADATION_ALERT_RATE` and 20 is
+`DEGRADATION_MIN_SAMPLE`, both already in `lib/health.ts` with their reasoning: at half of all
+narration attempts degrading the product has stopped doing the thing it exists to do, and below 20
+attempts the rate is noise. What this adds is the window, the consequence, and the commitment.
+
+**Why a window and not the existing alert.** `DEGRADATION_ALERT_RATE` fires on one reading, and one
+bad reading is a reason to look rather than a reason to stop: a provider blip, one member's odd
+week, a key rotated at the wrong moment. Sustained over a week with a readable sample is a
+different claim. The tests pin this both ways: two catastrophic days inside an otherwise healthy
+week do **not** kill the product, and a full week at 100% degradation on only 7 attempts does
+**not** either, because a rate read off 7 attempts is not evidence.
+
+**Result so far: not enough data.** No pilot week of outcome counters has been evaluated against
+this line yet. That is the honest status, and `evaluateKillLine` returns exactly that rather than a
+reassuring "holding".
+
+### K2, the single event: one non-consented publication
+
+**Kill the auto-publish design if a participant reports a published narrative they did not consent
+to, or one that named somebody other than its actor.** N=1. Not a rate, never averaged, and it
+dominates K1: `evaluateKillLine` returns `crossed` on a consent report even in a perfectly healthy
+week and even with no data at all.
+
+**Result so far: no such report.**
+
+The asymmetry between K1 and K2 is deliberate. A rate can be argued about. A single person publicly
+attributed something they did not say cannot be, and a criterion that could be averaged away would
+not be protecting the thing that actually matters here.
+
+### The detector gap, still open and still stated
+
+`lib/health.ts` defines what a broken narration rate looks like and `/api/usage` reports it, so K1
+is measurable rather than felt. **But nothing polls it and nothing alerts**, in this repo or any
+other in the portfolio.
+
+K2 is worse and cannot be fixed by wiring: no number would catch it. A single wrong narrative that
+the guard passed reads as a perfectly healthy narration, so the only detector is a participant
+speaking up, and [RUNBOOK.md](RUNBOOK.md) is what happens next. Writing the criterion down does not
+create the detector, and pretending otherwise would be the overclaim.
 
 ---
 
