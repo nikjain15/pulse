@@ -6,7 +6,7 @@
 [![tests](https://img.shields.io/badge/tests-934%20passing%20locally-brightgreen.svg)](#tests)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Live: [pulsecohort.vercel.app](https://pulsecohort.vercel.app)** · Source: this repo · Piloted with the cohort, a 65-person developer program.
+**Live: [pulsecohort.vercel.app](https://pulsecohort.vercel.app)** · Source: this repo · Piloted with the cohort, a 60+ person developer program.
 
 <!-- DEMO_GIF -->
 
@@ -17,7 +17,7 @@ to the next person who gets stuck. Every user-facing string follows [VOICE.md](V
 system is [DESIGN-SPEC.md](DESIGN-SPEC.md) §4.
 
 Every task board dies the same way: updating it is manual, boring, and the first thing to go. This
-cohort's work is already legible, 65 people running coding agents against public repos. The status is
+cohort's work is already legible, 60+ people running coding agents against public repos. The status is
 already out there. Nobody should be typing it in.
 
 | Layer | Does | Ships |
